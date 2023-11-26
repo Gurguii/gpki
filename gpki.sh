@@ -169,8 +169,7 @@ function InitPKI()
 
   local path="$2"
 
-  local profilecheck=$(CheckProfile "$profile_name") 
-  while [ -n "$profilecheck" ] ; do
+  while [ -n "${profiles[$profile_name]}" ] ; do
     printf "Profile '%s' already exist, change profile name? [Y/N] " "$profile_name"  
     read -r -p "" ans                                                                 
     if [[ ${ans,,} == "y" || ${ans,,} == "yes" ]]; then                                 
@@ -178,7 +177,6 @@ function InitPKI()
     else
       return 1
     fi                                                                                
-    profilecheck=$(CheckProfile "$profile_name")
   done
   
   while [ "${path:0:1}" != "/" ]; do
@@ -191,7 +189,7 @@ function InitPKI()
     read -r -p "" ans
     case "${ans,,}" in
       "d")
-        RemoveProfile "$pathcheck"
+        RemoveProfile "$path"
         break
         ;;
       "r")
