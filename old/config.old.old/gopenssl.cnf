@@ -1,0 +1,32 @@
+[ req ]
+distinguished_name = req_distinguished_name
+policy             = policy_match
+x509_extensions    = v3_ca
+
+# For the CA policy
+.include policy_match.cnf
+
+# CA section
+.include req_distinguished_name.cnf
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+basicConstraints = critical,CA:true
+keyUsage = cRLSign, keyCertSign
+
+# Server section
+.include req_distinguished_name.cnf
+[ v3_sv ]
+basicConstraints       = CA:FALSE
+extendedKeyUsage       = serverAuth
+keyUsage               = digitalSignature, keyEncipherment, nonRepudiation
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+
+# Client section
+.include req_distinguished_name.cnf
+[ v3_cl ]
+basicConstraints       = CA:FALSE
+extendedKeyUsage       = clientAuth
+keyUsage               = digitalSignature, keyEncipherment, keyAgreement

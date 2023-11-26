@@ -1,0 +1,21 @@
+[ req ]
+distinguished_name  = req_distinguished_name
+policy              = policy_match
+x509_extensions     = v3_crt
+req_extensions      = v3_req
+
+.include req_distinguished_name.cnf
+
+.include policy_match.cnf
+
+[ v3_crt ]
+basicConstraints        = CA:FALSE
+extendedKeyUsage        = clientAuth
+keyUsage                = digitalSignature, keyEncipherment, keyAgreement
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always,issuer:always
+
+[ v3_req ]
+basicConstraints        = CA:FALSE
+extendedKeyUsage        = clientAuth
+keyUsage                = digitalSignature, keyEncipherment, keyAgreement
