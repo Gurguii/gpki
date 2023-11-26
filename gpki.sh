@@ -11,9 +11,10 @@
 # [dir]  $profile/pki/database           -> info about issued certificates and status
 # [file] $profile/pki/database/index.txt -> info about certificates and status (revoked/verified)
 # [dir]  $profile/pki/keys               -> private keys
-# [dir]  $profile/pki/serial
-# [file] $profile/pki/serial/serial      -> stores next serial number to use, by default starts with 01
-# [file] $profile/$profile.pkiconf       -> stores info about the profile installation
+# [dir]  $profile/pki/serial             -> serial related files 
+# [file] $profile/pki/serial/serial      -> next serial number to use, by default starts with 01
+# [file] $profile/$profile.pkiconf       -> info about the profile installation
+# [dir]  $profile/logs
 
 # Global variables #
 dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -25,8 +26,16 @@ declare -A profiles
 ####################
 
 # Global variables given by user #
+args=()           
+argc=0
+profile_name="" # profile name required to do most stuff
+pkiconf=""      # profile .pkiconf location
+common_name=""  # common name to use for certificate creation operations  
+create_pack=0
 ##################################
 
+
+###################### BEGINNING OF HELP FUNCTIONS #########################
 function Usage()
 {
   cat << EOF
@@ -36,45 +45,96 @@ Usage: gpki.sh <action> <options>
 init-pki | build-ca | build-server | build-client | remove-profile | remove-all-profiles
 
 [ OPTIONS ]
+not added yet
 
-[ EXAMPLES ]
-./gpki.sh init-pki /home/gurgui/mynewpki
-./gpki.sh build-ca mynewpki myCA
-./gpki.sh build-server mynewpki mySV
-./gpki.sh build-client mynewpki client1
+- Create new profile -
+./gpki.sh init-pki /home/gurgui/[profile]
+
+- Create new entities -
+./gpki.sh build-ca     [profile] [cn]
+./gpki.sh build-server [profile] [cn]
+./gpki.sh build-client [profile] [cn]
+
+- Create packs -
+NOT IMPLEMENTED ./gpki.sh create-pack  [profile] [cn] [options]
+
+- Removing profiles -
+./gpki.sh remove-profile [profile]
+./gpki.sh remove-all-profiles
 EOF
 }
-function RemoveProfile()
+
+function help_build-ca()
+{
+  printf "build-ca help function\n"
+}
+
+function help_build-server()
+{
+  printf "build-server help function\n"
+}
+
+function help_build-client()
+{
+  printf "build-client help function\n"
+}
+
+declare -A helpmsg
+helpmsg["build-ca"]=$(help_build-ca)
+helpmsg["build-server"]=$(help_build-server)
+helpmsg["build-client"]=$(help_build-client)
+####################### END OF HELP FUNCTIONS #############################
+
+function DefaultSubjectValuesWithCustomCN()
 {
   # Params
-  # $1 -> Profile name
-  if [ -z "$1" ]; then
-    printf "gpki.sh remove-profile <profilename>"
-    return
-  fi
+  # $1 - CN
+  printf "/C=ES/ST=CANARIAS/L=LAS PALMAS/O=MARIWANOS/CN=$1/emailAddress=noemail"
+}
 
-  local path=""
-  while read line; do 
-    name=$(echo $line | cut -d: -f1)
-    if [[ "${name,,}" == "${1,,}" ]]; then
-      # Got profile
-      path=$(echo $line | cut -d: -f2)
+function CheckProfile()
+{
+  # $1 - profile name
+  local profile_name="$1"
+  # returns 1 if profile exists else 0
+  while read entry; do
+    name=$(echo $entry | cut -d: -f1)
+    if [ "$name" == "$profile_name" ]; then
+      printf "%s" "$name"
+      break
     fi
   done < "$file_profiles"
+}
 
-  if [ -z "$path" ]; then
-    printf "Couldn't find profile '%s' in '%s'\n" "$1" "$file_profiles"
-  else
-    printf "About to run 'rm -rf %s', continue? [Y/N]: " "$path"
-    read -r -p "" ans
-    if [[ ${ans,,} == "y" || ${ans,,} == "yes" ]]; then
-      rm -rf "$path"
+function CheckProfilePath()
+{
+  # $1 - profile path
+  local profile_path="$1"
+  # returns 1 if path exists else 0
+  while read entry; do
+    path=$(echo $entry | cut -d: -f2)
+    source "$path"
+    if [ "$profile_source_dir" == "$profile_path" ]; then
+      printf "%s" "$profile_name"
+      break
+    fi
+  done < "$file_profiles"
+}
+
+function RemoveProfile()
+{
+  local profile_name="$1"
+  printf "Deleting profile '%s'\n" "$profile_name"
+  printf "WARNING about to run 'rm -rf %s', continue? [Y/N]: " "$profile_source_dir"
+  read -r -p "" ans
+  if [[ ${ans,,} == "y" || ${ans,,} == "yes" ]]; then
+      rm -rf "$profile_source_dir"
       newprofile="$file_profiles.new"
       touch "$newprofile"
 
       while read line; do 
         name=$(echo $line | cut -d: -f1)
-        if [[ "${name,,}" != "${1,,}" ]]; then
+        if [[ "${name,,}" != "${profile_name,,}" ]]; then
           echo "$line" >> "$newprofile"
         fi
       done < "$file_profiles"
@@ -88,57 +148,75 @@ function RemoveProfile()
       printf "Not removing anything, exiting...\n"
       return 
     fi
-  fi
 }
+
 function InitPKI()
 {
   # This function initializes a new PKI profile
   # what means creating the directory structure,
   # $profile.pkiconf file, adecuate the gopenssl.cnf 
-  # template 
+  # template, etc. 
    
-  # Params
   # [Mandatory]
   # $1 -> absolute path to new profile directory
   # [Optional]
   # $2 -> name to give to profile - default path's dirname
-  local path="$1"
-  local name="$2"
-  local profile_name=""
+  
+  local profile_name="$1"
+  while [ -z "$profile_name" ]; do
+    read -r -p "Profile name: " profile_name
+  done
 
-  if [ -z "$path" ]; then
-    read -r -p "Path to create new PKI structure: " path
-  fi
+  local path="$2"
 
-  if [ -z "$name" ]; then
-    profile_name=$(basename $path)
-  else
-    profile_name="$name"
-  fi
-
-  if [ ! -z ${profiles[$profile_name]} ]; then
-    printf "Profile '%s' already exists on path '%s', remove? [Y/N] " "$profile_name" "${profiles[$profile_name]}"
+  local profilecheck=$(CheckProfile "$profile_name") 
+  while [ -n "$profilecheck" ] ; do
+    printf "Profile '%s' already exist, change profile name? [Y/N] " "$profile_name"  
+    read -r -p "" ans                                                                 
+    if [[ ${ans,,} == "y" || ${ans,,} == "yes" ]]; then                                 
+      read -r -p "New profile name: " profile_name                                    
+    else
+      return 1
+    fi                                                                                
+    profilecheck=$(CheckProfile "$profile_name")
+  done
+  
+  while [ "${path:0:1}" != "/" ]; do
+    read -r -p "Path to create new PKI structure [absolute path]: " path
+  done
+ 
+  local pathcheck=$(CheckProfilePath "$path")
+  while [ -n "$pathcheck" ]; do
+    printf "Path '%s' in use by profile '%s', what to do?\n'd' - delete 'r' - rename 'any other' - exit" "$path" "$pathcheck"
     read -r -p "" ans
-    if [[ ${ans,,} == "y" || ${ans,,} == "yes" ]]; then
-      printf "Removing profile $profile_name\n"
-      RemoveProfile "$profile_name"
-      # rm -rf "${profiles[$profile_name]}"
+    case "${ans,,}" in
+      "d")
+        RemoveProfile "$pathcheck"
+        break
+        ;;
+      "r")
+        read -r -p "New path [absolute]: " path 
+        ;;
+      *)
+        break
+        ;;
+    esac
+    pathcheck=$(CheckProfilePath "$path")
+  done 
+
+  if [ -e "$path" ]; then
+    printf "Path '%s' already exists, remove? [Y/N] " "$path"
+    read -r -p "" ans
+    if [ ${ans,,} == "y" || ${ans,,} == "yes" ]; then
+      rm -rf "$path"
+    else 
+      return 0
     fi
   fi
-
-  if  [ -e "$path" ]; then
-    printf "Path '%s' does exist, remove? [Y/N]: " "$path"
-    read -r -p "" ans
-    if ! [[ ${ans,,} == "y" || ${ans,,} == "yes" ]]; then
-      printf "Cannot continue, exiting ...\n"
-      return
-    fi
-    rm -rf "$path"
-  fi 
 
   # Create pki structure
   mkdir -p "$path/pki" "$path/pki/ca" "$path/pki/certs" "$path/pki/crl" "$path/pki/database" "$path/pki/keys"\
-   "$path/pki/req" "$path/pki/serial" 
+   "$path/pki/reqs" "$path/pki/serial" "$path/logs" 
 
   echo 01 > "$path/pki/serial/serial"
   echo 1000 > "$path/pki/crl/crlnumber"
@@ -154,15 +232,28 @@ function InitPKI()
 # Date: $(date '+%d-%m-%Y at %H:%M')
 # Author: Airán 'Gurguii' Gómez
 
+# Profile stuff
 profile_source_dir=$path
 profile_name=$profile_name
+
+# Openssl configutation file
 openssl_config_file=$path/config/gopenssl.cnf
+
+# PKi paths
 certs=$path/pki/certs
 keys=$path/pki/keys
 ca=$path/pki/ca
 reqs=$path/pki/reqs
-x509_dir=$path/config/x509
 serial=$path/pki/serial
+
+# Contains files with extensions for each certificate (client/server)
+x509_dir=$path/config/x509
+
+# Contains template files used to create packs or configuration files
+templates=$path/config/templates
+
+# Logs
+logs=$path/logs
 EOF
   # Add info about this new profile to .profiles file 
   printf "[info] Adding new entry '%s:%s' to '%s'\n" "$profile_name" "$path/config/.pkiconf" "$file_profiles"
@@ -172,118 +263,57 @@ EOF
 
 function BuildCA()
 {
-  # Params
-  # [Mandatory] $1 - profile name 
-  # [Optional]  $2 - CA common name
-  
-  if [[ -z "$1" ]]; then
-    printf "%s/gpki.sh build-ca <profile_name>* <common_name> [optional]\n" "$dir"
-    return
-  fi
-
-  local profile="$1"
-  local common_name="$2"
-  local pkiconf="${profiles[$profile]}"
-
-  if [ -z "$pkiconf" ]; then
-    printf "Profile '%s' not found in '%s'\n" "$profile" "$file_profiles"
-  fi
-  
-  # Import .pkiconf file
-  source "$pkiconf"
-
-  if [ -z "$pkiconf" ]; then 
-    printf "Profile '%s' not in '%s'\n" "$profile" "$file_profiles"
-    return
-  fi
-  
-  key_path="$ca/ca-key.pem"
-  crt_path="$ca/ca-crt.pem"
-
   if [ -z "$common_name" ]; then
-    openssl req -config "$openssl_config_file" -new -x509 -out "$crt_path" -keyout "$key_path" -nodes
+    local key="$ca/ca-key.pem"
+    local crt="$ca/ca-crt.pem"
+    openssl req -config "$openssl_config_file" -new -x509 -out "$crt" -keyout "$key" -nodes
   else
-    openssl req -config "$openssl_config_file" -new -x509 -out "$crt_path" -keyout "$key_path" -subj "/CN=$common_name" -nodes 
+    local key="$ca/$common_name-key.pem"
+    local crt="$ca/$common_name-crt.pem"
+    openssl req -config "$openssl_config_file" -new -x509 -out "$crt" -keyout "$key" -subj "/CN=$common_name" -nodes 
   fi
-  
-  printf "ca key -> '%s'\nca certificate -> '%s'\n" "$ca/ca-crt.pem" "$ca/ca-key.pem"
+  printf "[info] CA created:\nca certificate -> '%s'\nca key -> '%s'\n" "$crt" "$key"
 }
 
 function BuildServer()
 {
-  # Params
-  # [Mandatory] $1 - profile_name 
-  # [Optional] $2 - common_name
-  local profile="$1"
-  local common_name="$2"
-  local nserial=""
-
-  if [ -z "$profile" ]; then
-    printf "./gpki.sh build-server <profile_name>* <common_name>"
-    exit 1
-  fi
-  
-  local pkiconf="${profiles[$profile]}"
- 
-  if [ -z "$pkiconf" ]; then
-    printf "Profile '%s' does not exist\n" "$profile"
-    exit 1
-  fi
-  
-  source "$pkiconf" 
-  
-  nserial=$(cat "$serial/serial")
-
-  local request="$reqs/$nserial-csr.pem"
-  local key="$keys/$nserial-key.pem"
-  local cert="$certs/$nserial-crt.pem"
-   
-  if [ -z "$common_name" ]; then
-    openssl req -new -x509 -config "$openssl_config_file" -out "$request" -keyout "$key" -nodes
+  if [ -n "$common_name" ]; then
+    local request="$reqs/$common_name-csr.pem" 
+    local key="$keys/$common_name-key.pem"     
+    local cert="$certs/$common_name-crt.pem"   
+    subject=$(DefaultSubjectValuesWithCustomCN "$common_name")
+    openssl req -new -config "$openssl_config_file" -out "$request" -keyout "$key" -subj "$subject" -nodes
   else
-    openssl req -new -x509 -config "$openssl_config_file" -out "$request" -keyout "$key" -subj "/CN=$common_name" -nodes
+    local nserial=$(cat "$serial/serial" 2>/dev/null) 
+    local request="$reqs/$nserial-csr.pem"            
+    local key="$keys/$nserial-key.pem"                
+    local cert="$certs/$nserial-crt.pem"              
+    openssl req -new -config "$openssl_config_file" -out "$request" -keyout "$key" -nodes
   fi
-
   openssl ca -config "$openssl_config_file" -in "$request" -out "$cert" -extfile "$x509_dir/server" 
 }
 
 function BuildClient()
 {
-  # Params
-  # [Mandatory] $1 - profile_name 
-  # [Optional] $2 - common_name
-  
-  local profile="$1"
-  local common_name="$2"
-  local nserial=""
-
-  if [ -z "$profile" ]; then
-    printf "./gpki.sh build-client <profile_name>* <common_name>"
-    exit 1
-  fi
-  
-  local pkiconf="${profiles[$profile]}"
-  if [ -z "$pkiconf" ]; then
-    printf "Profile '%s' does not exist\n" "$profile"
-    exit 1
-  fi
-  source "$pkiconf" 
-  nserial=$(cat "$serial/serial")
-  local request="$reqs/$common_name-csr.pem"
-  local key="$keys/$common_name-key.pem"
-  local cert="$certs/$common_name-crt.pem"
-  
-  if [ -z "$common_name" ]; then
-    openssl req -new -x509 -config "$openssl_config_file" -out "$request" -keyout "$key" -nodes
+  if [ -n "$common_name" ]; then
+    local request="$reqs/$common_name-csr.pem" 
+    local key="$keys/$common_name-key.pem"     
+    local cert="$certs/$common_name-crt.pem"   
+    subject=$(DefaultSubjectValuesWithCustomCN "$common_name")
+    openssl req -new -config "$openssl_config_file" -out "$request" -keyout "$key" -subj "$subject" -nodes
   else
-    openssl req -new -x509 -config "$openssl_config_file" -out "$request" -keyout "$key" -subj "/CN=$common_name" -nodes
-  fi
-  openssl ca -config "$openssl_config_file" -in "$request" -out "$cert" -extfile "$x509_dir/server" 
+    local nserial=$(cat "$serial/serial" &>/dev/null)
+    local request="$reqs/$nserial-csr.pem"
+    local key="$keys/$nserial-key.pem"
+    local cert="$certs/$nserial-crt.pem"
+    openssl req -new -config "$openssl_config_file" -out "$request" -keyout "$key" -nodes 
+  fi 
+  openssl ca -config "$openssl_config_file" -in "$request" -out "$cert" -extfile "$x509_dir/client" 
 }
 
 function RemoveAllProfiles()
 {
-  read -r -p "This will delete every PKI profile inside $file_profiles, continue? [Y/N]: " ans
+  read -r -p "WARNING This will delete every PKI profile inside $file_profiles, continue? [Y/N]: " ans
   if [[ ${ans,,} == "y" || ${ans,,} == "yes" ]]; then
     while read line; do
       path=$(echo $line | cut -d: -f2)
@@ -293,84 +323,138 @@ function RemoveAllProfiles()
     > "$file_profiles"
   fi
   printf "Done, all PKI profiles were deleted\n"
+  return 0
+}
+
+function CreatePack()
+{
+  while [ -z "$common_name" ]; do
+    clear
+    printf "== Create pack ==\n"
+    read -r -p "Common name: " common_name
+  done
 }
 
 function Parse()
 {
-  local name
-  local path
-  # Given args must be 2 minimum (action + param)
-  if (( $# < 2 )); then 
-    Usage
-    exit 1
-  fi
-  
+  local scriptname="$0"
+
   # Remove script name from arguments
   shift
-  
+
+  # TODO - if first argument is 'help' check next one and give specific help
+  # e.g ./gpki.sh help build-ca would print options about build-ca command specifically, examples etc.
+
   # Check sudo privileges
-  if (( $EUID != 0 )); then
-    printf "[!] Need sudo privileges\n"
-    exit 1
+  #if (( $EUID != 0 )); then
+  #  printf "[!] Need sudo privileges\n"
+  #  exit 1
+  #fi
+  if [ $# -lt 1 ]; then
+    Usage
+    return 0
   fi
 
-  args=($@)
-  # Check if user asking for help msg
-  for i in ${args[@]}; do
-    if [[ "$i" == "-h" || "$i" == "--help" ]]; then
+  # Check if user asking for general help msg
+  for arg in $@; do
+    if [[ "${arg,,}" == "-h" || "${arg,,}" == "--help" ]]; then
       Usage
-      exit 1
+      return 0
     fi
   done
-  
-  # Load .profiles file into $profiles
-  while read line; do
-    name=$(echo $line | cut -d: -f1)
-    path=$(echo $line | cut -d: -f2)
-    profiles[$name]="$path"
-  done < "$file_profiles"
-  
+
+  if [ ! -e "$file_profiles" ]; then                         
+    touch "$file_profiles"                                   
+  else                                                       
+    # Load .profiles file into global variable $profiles     
+    while read line; do                                      
+      name=$(echo $line | cut -d: -f1)                       
+      path=$(echo $line | cut -d: -f2)                       
+      profiles[$name]="$path"                                
+    done < "$file_profiles"                                  
+  fi                                                         
+
   # Action will in essence be the function 
   # to call, and each function will make use
   # of whatever variables they use
-  action=${args[0]}
+  action="$1"
 
   case "$action" in
-    "init-pki")
-      # implemented
-      InitPKI ${args[@]:1}
+    "remove-all-profiles")
+      RemoveAllProfiles ${@:2}
+      return $?
       ;;
+    "init-pki")
+      InitPKI ${@:2}
+      return $?
+      ;;
+  esac
+    
+  # Every option down here requires a profile name minimum plus some optional extra args, so we can set the global variables
+  # profile_name and opts to reduce code duplication by not checking it in every function
+  profile_name="$2"
+  args=(${@:2})
+  argc=${#args[@]}
+  
+  if [ -z "$profile_name" ]; then
+    printf "[info] Profile name is mandatory\n"
+    printf "Example -> %s %s [profile]\n" "$scriptname" "$@"
+    printf "[help] %s help %s\n" "$scriptname" "$@"
+    return 1
+  fi
+  pkiconf="${profiles[$profile_name]}" 
+
+  if [ -z "$pkiconf" ]; then
+    printf "[info] Can't find profile '%s' in '%s'\n" "$profile_name" "$file_profiles"
+    # Print action-specific help message
+    printf "%s\n" "${helpmsg[$action]}"
+    return 1
+  fi
+  
+  # Parse more generic options to reduce code duplication
+  for(( i=0; i<argc; ++i )); do
+    opt="${args[$i]}"
+    case "$opt" in
+      "-cn" | "--common-name" )
+        common_name="${args[++i]}"
+        unset args[$i]
+        unset args[--i]
+        ;;
+      "-pack" | "--create-pack" )
+        create_pack=1
+        ;;
+      *)
+        ;;
+    esac
+  done
+
+  # Import pkiconf
+  source "$pkiconf"
+
+  case "$action" in
     "build-ca")
-      # implemented
-      BuildCA ${args[@]:1}
+      BuildCA
       ;;
     "build-server")
-      # not implemented
-      BuildServer ${args[@]:1}
+      BuildServer
       ;;
     "build-client")
-      # not implemented
-      BuildClient ${args[@]:1}
+      BuildClient
       ;;
     "remove-profile")
-      # implemented 
-      RemoveProfile ${args[@]:1}
-      ;;
-    "remove-all-profiles")
-      # implemented
-      RemoveAllProfiles
+      RemoveProfile ${@:2}
       ;;
     *)
       Usage
-      exit 1
       ;;
   esac
+  return $?
 }
 
 function Main()
 {
   Parse $@ 
+  return $?
 }
-
 
 Main $# $@
