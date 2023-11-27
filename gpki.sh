@@ -34,7 +34,6 @@ common_name=""  # common name to use for certificate creation operations
 create_pack=0
 ##################################
 
-
 ###################### BEGINNING OF HELP FUNCTIONS #########################
 function Usage()
 {
