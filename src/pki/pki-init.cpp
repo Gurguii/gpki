@@ -30,8 +30,10 @@ void pki_init(){
 
   // 1. create directories
   for(const char *&dir : pki_structure_relative_directory_paths){
-    if(std::filesystem::create_directory(path+"/"+dir)){
-      std::cout << "Creating directory '" << dir << "' failed\n";
+    if(!std::filesystem::create_directories(path+"/"+dir)){
+      std::cout << "[FAIL] Create directory '" << dir << "' failed\n";
+      // TODO - add cleanup function to delete what's been done
+      // e.g remove globals::base_dir
     };
   }
 
@@ -39,10 +41,13 @@ void pki_init(){
   std::ofstream(path+"/pki/crl/crlnumber").write("1000\n",5);
   std::ofstream(path+"/pki/serial/serial").write("01\n",3);
   std::ofstream(path+"/pki/database/index.txt");
-
   char command[120];
   memset(command,0,sizeof(command));
-  snprintf(command,sizeof(command),"sed -i 's#GPKI__BASEDIR#%s/pki#'; cp -rf %",path.c_str());
+  snprintf(command,sizeof(command),"cp -rf %s %s/config",globals::config_dir.c_str(),path.c_str());
   system(command);
-}
+  memset(command,0,sizeof(command));                                                                                                                     
+  snprintf(command,sizeof(command),"sed -i 's#GPKI_BASEDIR#%s/pki#' %s",path.c_str(), (path + "/config/gopenssl.cnf").c_str()); 
+  system(command);                                                                                                                                        
+  memset(command,0,sizeof(command));
+} 
 } // namespace gpki

@@ -16,5 +16,6 @@ int main(int argc, const char **args)
   //  return -1;
   //};
   globals::Initialize();
+  gpki::pki_init();
   return 0;
 }
