@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include "help/usage.cpp"
+#include "globals.hpp"
 /* As reference
  * ./gpki [action] [profile-name] [options] 
  * ./gpki build-ca myvpnserver -cn myCA
