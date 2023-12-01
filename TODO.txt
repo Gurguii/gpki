@@ -1,3 +1,6 @@
+[ TODO ]
+- add enum struct with custom error msgs related with pkis, e.g "not existing profile" 
+to be used with the returned values of the function to give beter info
 [ BASIC FEATURES REQUIRED ]
 
 The idea is to have a script that allows creating pkis in a directory, automaticly creating a .pkiconf file 
