@@ -10,12 +10,16 @@
 #include "pki/build-client.cpp"
 #include "pki/pki-init.cpp"
 
+using namespace gpki;
+
 int main(int argc, const char **args)
 {
   //if(Parse(argc,args)){
   //  return -1;
   //};
   globals::Initialize();
-  gpki::pki_init();
+  Profiles::Initialize();
+  build_ca("tw");
+  //build_ca("tw","OTHERCA");
   return 0;
 }

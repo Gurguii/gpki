@@ -1,4 +1,8 @@
 #include "pki-init.hpp"
+#include "../utils/file_utils.cpp"
+
+#define STARTING_CRLNUMBER "1000\n"
+#define STARTING_SERIAL "01\n"
 
 namespace gpki {
 std::string pkiconf_template = R"(
@@ -53,11 +57,17 @@ void pki_init() {
   } while (input[0] != '/');
   path = std::move(input);
 
+  // Check that we have write permissions in such path
+  if(!hasWritePermissions(path)){
+    std::cout << "[error] Not write permissions in target path\n";
+    return;
+  };
   // Create PKI structure
 
   // 1. create directories
   for (const char *&dir : pki_structure_relative_directory_paths) {
     if (!std::filesystem::create_directories(path + "/" + dir)) {
+      // This shouldn't happen
       std::cout << "[FAIL] Create directory '" << dir << "' failed\n";
       // TODO - add cleanup function to delete what's been done
       // e.g remove globals::base_dir
@@ -65,8 +75,8 @@ void pki_init() {
   }
 
   // 2. create files
-  std::ofstream(path + "/pki/crl/crlnumber").write("1000\n", 5);
-  std::ofstream(path + "/pki/serial/serial").write("01\n", 3);
+  std::ofstream(path + "/pki/crl/crlnumber").write(STARTING_CRLNUMBER, strlen(STARTING_CRLNUMBER));
+  std::ofstream(path + "/pki/serial/serial").write(STARTING_SERIAL, strlen(STARTING_SERIAL));
   std::ofstream(path + "/pki/database/index.txt");
   char command[120];
   memset(command, 0, sizeof(command));

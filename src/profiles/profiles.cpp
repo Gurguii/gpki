@@ -9,11 +9,13 @@ const auto has = [](std::string_view st, char c) {
 };
 
 namespace gpki {
-int Profiles::Initialize(std::string_view filepath) {
-  _path = filepath;
-  _filesize = std::filesystem::file_size(filepath);
 
-  std::ifstream file(filepath.data());
+
+int Profiles::Initialize() {
+  _path = globals::profiles_file;
+  _filesize = std::filesystem::file_size(_path);
+
+  std::ifstream file(_path.data());
   if (!file.is_open()) {
     return -1;
   }
@@ -36,16 +38,21 @@ int Profiles::Initialize(std::string_view filepath) {
   }
   return 0;
 }
+
 int Profiles::Find(std::string_view key) {
   return (_profiles.find(key.data()) == _profiles.end()) ? 0 : 1;
 }
+
 int Profiles::Total() { return _profiles.size(); }
+
 int Profiles::Add(std::string_view profile_name, std::string_view base_dir) {
   if (Find(profile_name)) {
     // profile found
     std::cout << "profile '" << profile_name << "' already exists\n";
     return -1;
   }
+  std::cout << "[info] Adding entry for '" << profile_name << "'\n";
+  std::cout << ".profiles path -> " << _path << "\n";
   std::ofstream profiles_file(_path.data(), std::ios::binary | std::ios::app);
   profiles_file << profile_name << "=" << base_dir << "\n";
   return 0;
@@ -81,6 +88,8 @@ int Profiles::Remove(std::string_view profile_name) {
   return 0;
 }
 
+/* Populates the profileInfo structure with info about profile with name profile_name 
+ * returns -1 on error 0 on success */
 int Profiles::Get(std::string_view profile_name, profileInfo &pinfo) {
   /* Variable delimiter is = */
   if (_profiles.empty()) {
@@ -91,40 +100,36 @@ int Profiles::Get(std::string_view profile_name, profileInfo &pinfo) {
     // profile not found
     return -1;
   }
-  std::ifstream profiles_file(_path.data());
-  std::ofstream tmp_profile_file(".tmp.profiles");
   std::string line;
-
-  while (getline(profiles_file, line)) {
-    if (line[0] == '#' || !has(line, '=')) {
-      // its a comment or does not contain delimiter :
+  std::string pkiconf_path = _profiles[profile_name.data()] + "/config/.pkiconf";
+  std::ifstream pkiconf_contents(pkiconf_path);
+  while(getline(pkiconf_contents,line)){
+    if(line[0] == '#'){
       continue;
     }
-    char *path = strtok(&line[0], "=");
+    if(!has(line,'=')){
+      continue;
+    }
+    char *path = strtok(line.data(),"=");
     char *name = path;
-    path = strtok(NULL, "=");
-    if (strcmp(name, profile_name.data())) {
-      // not the profile, write the line to tmpfile
-      tmp_profile_file << name << "=" << path << "\n";
-    }
-    // same profile
+    path = strtok(nullptr,"=");
     if (!strcmp(name, "certs")) {
-      pinfo.certs = path;
-    } else if (!strcmp(name, "keys")) {
-      pinfo.keys = path;
-    } else if (!strcmp(name, "ca")) {
-      pinfo.ca = path;
-    } else if (!strcmp(name, "x509")) {
-      pinfo.x509 = path;
-    } else if (!strcmp(name, "serial")) {
-      pinfo.serial = path;
-    } else if (!strcmp(name, "templates")) {
-      pinfo.templates = path;
-    } else if (!strcmp(name, "openssl_config")) {
-      pinfo.openssl_config = path;
-    } else if (!strcmp(name, "logs")) {
-      pinfo.logs = path;
-    }
+        pinfo.certs = path;
+      } else if (!strcmp(name, "keys")) {
+        pinfo.keys = path;
+      } else if (!strcmp(name, "ca")) {
+        pinfo.ca = path;
+      } else if (!strcmp(name, "x509_dir")) {
+        pinfo.x509 = path;
+      } else if (!strcmp(name, "serial")) {
+        pinfo.serial = path;
+      } else if (!strcmp(name, "templates")) {
+        pinfo.templates = path;
+      } else if (!strcmp(name, "openssl_config_file")) {
+        pinfo.openssl_config = path;
+      } else if (!strcmp(name, "logs")) {
+        pinfo.logs = path;
+      }
   }
   return 0;
 };
