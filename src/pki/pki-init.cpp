@@ -1,6 +1,4 @@
 #include "pki-init.hpp"
-#include "../utils/file_utils.cpp"
-
 #define STARTING_CRLNUMBER "1000\n"
 #define STARTING_SERIAL "01\n"
 
@@ -58,7 +56,7 @@ void pki_init() {
   path = std::move(input);
 
   // Check that we have write permissions in such path
-  if(!hasWritePermissions(path)){
+  if (!hasWritePermissions(path)) {
     std::cout << "[error] Not write permissions in target path\n";
     return;
   };
@@ -75,8 +73,10 @@ void pki_init() {
   }
 
   // 2. create files
-  std::ofstream(path + "/pki/crl/crlnumber").write(STARTING_CRLNUMBER, strlen(STARTING_CRLNUMBER));
-  std::ofstream(path + "/pki/serial/serial").write(STARTING_SERIAL, strlen(STARTING_SERIAL));
+  std::ofstream(path + "/pki/crl/crlnumber")
+      .write(STARTING_CRLNUMBER, strlen(STARTING_CRLNUMBER));
+  std::ofstream(path + "/pki/serial/serial")
+      .write(STARTING_SERIAL, strlen(STARTING_SERIAL));
   std::ofstream(path + "/pki/database/index.txt");
   char command[120];
   memset(command, 0, sizeof(command));

@@ -9,8 +9,6 @@ const auto has = [](std::string_view st, char c) {
 };
 
 namespace gpki {
-
-
 int Profiles::Initialize() {
   _path = globals::profiles_file;
   _filesize = std::filesystem::file_size(_path);
@@ -51,8 +49,8 @@ int Profiles::Add(std::string_view profile_name, std::string_view base_dir) {
     std::cout << "profile '" << profile_name << "' already exists\n";
     return -1;
   }
+  _profiles[profile_name.data()] = base_dir;
   std::cout << "[info] Adding entry for '" << profile_name << "'\n";
-  std::cout << ".profiles path -> " << _path << "\n";
   std::ofstream profiles_file(_path.data(), std::ios::binary | std::ios::app);
   profiles_file << profile_name << "=" << base_dir << "\n";
   return 0;
@@ -88,8 +86,8 @@ int Profiles::Remove(std::string_view profile_name) {
   return 0;
 }
 
-/* Populates the profileInfo structure with info about profile with name profile_name 
- * returns -1 on error 0 on success */
+/* Populates the profileInfo structure with info about profile with name
+ * profile_name returns -1 on error 0 on success */
 int Profiles::Get(std::string_view profile_name, profileInfo &pinfo) {
   /* Variable delimiter is = */
   if (_profiles.empty()) {
@@ -101,35 +99,36 @@ int Profiles::Get(std::string_view profile_name, profileInfo &pinfo) {
     return -1;
   }
   std::string line;
-  std::string pkiconf_path = _profiles[profile_name.data()] + "/config/.pkiconf";
+  std::string pkiconf_path =
+      _profiles[profile_name.data()] + "/config/.pkiconf";
   std::ifstream pkiconf_contents(pkiconf_path);
-  while(getline(pkiconf_contents,line)){
-    if(line[0] == '#'){
+  while (getline(pkiconf_contents, line)) {
+    if (line[0] == '#') {
       continue;
     }
-    if(!has(line,'=')){
+    if (!has(line, '=')) {
       continue;
     }
-    char *path = strtok(line.data(),"=");
+    char *path = strtok(line.data(), "=");
     char *name = path;
-    path = strtok(nullptr,"=");
+    path = strtok(nullptr, "=");
     if (!strcmp(name, "certs")) {
-        pinfo.certs = path;
-      } else if (!strcmp(name, "keys")) {
-        pinfo.keys = path;
-      } else if (!strcmp(name, "ca")) {
-        pinfo.ca = path;
-      } else if (!strcmp(name, "x509_dir")) {
-        pinfo.x509 = path;
-      } else if (!strcmp(name, "serial")) {
-        pinfo.serial = path;
-      } else if (!strcmp(name, "templates")) {
-        pinfo.templates = path;
-      } else if (!strcmp(name, "openssl_config_file")) {
-        pinfo.openssl_config = path;
-      } else if (!strcmp(name, "logs")) {
-        pinfo.logs = path;
-      }
+      pinfo.certs = path;
+    } else if (!strcmp(name, "keys")) {
+      pinfo.keys = path;
+    } else if (!strcmp(name, "ca")) {
+      pinfo.ca = path;
+    } else if (!strcmp(name, "x509_dir")) {
+      pinfo.x509 = path;
+    } else if (!strcmp(name, "serial")) {
+      pinfo.serial = path;
+    } else if (!strcmp(name, "templates")) {
+      pinfo.templates = path;
+    } else if (!strcmp(name, "openssl_config_file")) {
+      pinfo.openssl_config = path;
+    } else if (!strcmp(name, "logs")) {
+      pinfo.logs = path;
+    }
   }
   return 0;
 };
