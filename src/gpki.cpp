@@ -1,26 +1,50 @@
-#include <filesystem>
 #include <iostream>
-#include <map>
-
+#include "profiles/profiles.cpp"
 #include "globals.cpp"
 #include "parser.cpp"
+#include "pki/utils.cpp"
+#include "pki/init-pki.cpp"
 #include "pki/build-ca.cpp"
-#include "pki/build-client.cpp"
 #include "pki/build-server.cpp"
-#include "pki/pki-init.cpp"
-#include "profiles/profiles.cpp"
-
+#include "pki/build-client.cpp"
+#include "help/usage.cpp"
 using namespace gpki;
 
 int main(int argc, const char **args) {
-  // if(Parse(argc,args)){
-  //   return -1;
-  // };
-  globals::Initialize();
-  Profiles::Initialize();
-  pki_init();
+  Globals::Initialize(argc, args);
+
+  if(Parse(argc,args)){
+    // something went wrong
+    usage();
+    return -1;
+  };
+
+  /* Check Globals and call appropiate methods */
+  switch(static_cast<uint8_t>(Globals::action)){
+    case(ACTION_INIT_PKI):
+      pki_init();
+      break;
+    case(ACTION_BUILD_CA):
+      build_ca(); 
+      break;
+    case(ACTION_BUILD_SERVER):
+      build_server();
+      break;
+    case(ACTION_BUILD_CLIENT):
+      build_client();
+      break;
+    case(ACTION_NONE):
+      // no action to be done
+      return -1;
+    default:
+      // should never happen
+      std::cerr << "[error] no proper action given\n";
+      return -1;
+  };
+
+  /* pki_init();
   build_ca("test");
   build_server("test");
-  // build_ca("tw","OTHERCA");
+  build_client("test"); */
   return 0;
 }

@@ -34,7 +34,7 @@ public:
   static inline std::string_view _path{};
   static inline uint64_t _filesize{0};
 
-  /* Initializes the variables, filling _profiles with contents from .profiles
+  /* Initializes the _profiles, filling it with contents from .profiles
    */
   static int Initialize();
   /* Return 1 if profile is found else 0 */

@@ -10,7 +10,7 @@ const auto has = [](std::string_view st, char c) {
 
 namespace gpki {
 int Profiles::Initialize() {
-  _path = globals::profiles_file;
+  _path = Globals::profiles_file;
   _filesize = std::filesystem::file_size(_path);
 
   std::ifstream file(_path.data());
@@ -49,8 +49,10 @@ int Profiles::Add(std::string_view profile_name, std::string_view base_dir) {
     std::cout << "profile '" << profile_name << "' already exists\n";
     return -1;
   }
+  // add entry to _profiles std::map
   _profiles[profile_name.data()] = base_dir;
   std::cout << "[info] Adding entry for '" << profile_name << "'\n";
+  // add entry to .profiles file
   std::ofstream profiles_file(_path.data(), std::ios::binary | std::ios::app);
   profiles_file << profile_name << "=" << base_dir << "\n";
   return 0;
@@ -128,6 +130,8 @@ int Profiles::Get(std::string_view profile_name, profileInfo &pinfo) {
       pinfo.openssl_config = path;
     } else if (!strcmp(name, "logs")) {
       pinfo.logs = path;
+    } else if (!strcmp(name, "reqs")) {
+      pinfo.reqs = path;
     }
   }
   return 0;

@@ -1,23 +1,5 @@
-#include "../profiles/profiles.hpp"
-#define DEFAULT_SUBJECT                                                        \
-  "/C=ES/ST=CANARIAS/L=LAS PALMAS/O=MARIWANOS/CN=%s/emailAddress=noemail"
-
+#include "utils.hpp"
 namespace gpki {
-struct CertCreationInfo {
-  char serial[10];
-  char csr[512];
-  char crt[512];
-  char key[512];
-  char csr_command[2048];
-  char crt_command[2048];
-};
-
-enum class x509_type {
-  client = 0x00,
-#define x509_client x509_type::client
-  server = 0x01
-#define x509_server x509_type::server
-};
 int GetCertCreationInfo(std::string_view profile_name, CertCreationInfo &buff,
                         x509_type type) {
   profileInfo info;
@@ -27,13 +9,18 @@ int GetCertCreationInfo(std::string_view profile_name, CertCreationInfo &buff,
     memset(st, 0, strlen(st));
   }
   std::ifstream(info.serial + "/serial").read(buff.serial, sizeof(buff.serial));
+  // remove terminating \n from serial to be able to properly format the string
+  buff.serial[strlen(buff.serial) - 1] = 0x00;
   snprintf(buff.csr, sizeof(buff.csr), "%s/%s-csr.pem", info.reqs.c_str(),
            buff.serial);
   snprintf(buff.crt, sizeof(buff.crt), "%s/%s-crt.pem", info.certs.c_str(),
            buff.serial);
   snprintf(buff.key, sizeof(buff.key), "%s/%s-key.pem", info.keys.c_str(),
            buff.serial);
+  printf("buff.csr -> %s\nbuff.crt -> %s\nbuff.key -> %s\n", buff.csr, buff.crt,
+         buff.key);
   if (type == x509_server) {
+    // SERVER
     // csr/key creation command
     snprintf(buff.csr_command, sizeof(buff.csr_command),
              "openssl req -config %s -new -out %s -keyout %s -nodes",
@@ -44,6 +31,7 @@ int GetCertCreationInfo(std::string_view profile_name, CertCreationInfo &buff,
              info.openssl_config.c_str(), buff.csr, buff.crt,
              (info.x509 + "/server").c_str());
   } else if (type == x509_client) {
+    // CLIENT
     // csr/key creation command
     snprintf(buff.csr_command, sizeof(buff.csr_command),
              "openssl req -config %s -new -out %s -keyout %s -nodes",
@@ -56,6 +44,8 @@ int GetCertCreationInfo(std::string_view profile_name, CertCreationInfo &buff,
   }
   return 0;
 };
-int GetCertCreationInfo(std::string_view profile_name, std::string_view CN,
-                        CertCreationInfo &buff);
+int GetCertCreationInfo(std::string_view profile_name, CertCreationInfo &buff,
+                        x509_type type, std::string_view CN) {
+  return 0;
+};
 } // namespace gpki

@@ -7,7 +7,7 @@ void usage()
 Author: Airán 'Gurguii' Gómez
 Description: gpki helps creating/managing pki's mainly focused for VPN use
 
-Usage: gpki.sh <action> <options>                                                        
+Usage: gpki <action> <options>                                                        
                                                                                          
 [ ACTIONS ]                                                                              
 init-pki | build-ca | build-server | build-client | remove-profile | remove-all-profiles 
@@ -16,19 +16,19 @@ init-pki | build-ca | build-server | build-client | remove-profile | remove-all-
 not added yet                                                                            
                                                                                          
 - Create new profile -                                                                   
-./gpki.sh init-pki /home/gurgui/[profile]                                                
+./gpki init-pki /home/gurgui/[profile]                                                
                                                                                          
 - Create new entities -                                                                  
-./gpki.sh build-ca     [profile] [cn]                                                    
-./gpki.sh build-server [profile] [cn]                                                    
-./gpki.sh build-client [profile] [cn]                                                    
+./gpki build-ca     [profile] [cn]                                                    
+./gpki build-server [profile] [cn]                                                    
+./gpki build-client [profile] [cn]                                                    
                                                                                          
 - Create packs -                                                                           
-NOT IMPLEMENTED ./gpki.sh create-pack  [profile] [cn] [options]                          
+NOT IMPLEMENTED ./gpki create-pack  [profile] [cn] [options]                          
                                                                                          
 - Removing profiles -                                                                    
-./gpki.sh remove-profile [profile]                                                       
-./gpki.sh remove-all-profiles                                                            
+./gpki remove-profile [profile]                                                       
+./gpki remove-all-profiles                                                            
 )";
   std::cout << st << "\n";
 }

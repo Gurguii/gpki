@@ -1,4 +1,11 @@
-#include "pki-init.hpp"
+#include "../utils/file_utils.cpp"
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include "../profiles/profiles.hpp"
+
 #define STARTING_CRLNUMBER "1000\n"
 #define STARTING_SERIAL "01\n"
 
@@ -33,7 +40,7 @@ logs=%s/logs
 
 std::vector<const char *> pki_structure_relative_directory_paths{
     "x509",      "templates", "packs",        "pki/ca",     "pki/crl",
-    "pki/certs", "pki/keys",  "pki/database", "pki/serial", "logs"};
+    "pki/certs", "pki/keys",  "pki/database", "pki/serial", "pki/reqs", "logs"};
 
 void pki_init() {
   // ask for profile_name and path making sure path is absolute (starts with
@@ -57,7 +64,7 @@ void pki_init() {
 
   // Check that we have write permissions in such path
   if (!hasWritePermissions(path)) {
-    std::cout << "[error] Not write permissions in target path\n";
+    std::cout << "[error] Not write permissions in '" << path << "'\n";
     return;
   };
   // Create PKI structure
@@ -81,7 +88,7 @@ void pki_init() {
   char command[120];
   memset(command, 0, sizeof(command));
   snprintf(command, sizeof(command), "cp -rf %s %s/config",
-           globals::config_dir.c_str(), path.c_str());
+           Globals::config_dir.c_str(), path.c_str());
   system(command);
   memset(command, 0, sizeof(command));
   snprintf(command, sizeof(command), "sed -i 's#GPKI_BASEDIR#%s/pki#' %s",
