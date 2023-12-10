@@ -1,43 +1,6 @@
 [ TODO ]
+- end adding SLASH usage to work on both windows / linux systems
 - add enum struct with custom error msgs related with pkis, e.g "not existing profile" 
 to be used with the returned values of the function to give beter info
-[ BASIC FEATURES REQUIRED ]
+- DONE add 'sed' function
 
-The idea is to have a script that allows creating pkis in a directory, automaticly creating a .pkiconf file 
-that stores info + defaults (keysize, algorithm, output format, etc.) and store path to that .pkiconf in a 
-"cache" file so that the script can be used to manage any created pki, e.g 
-
-# Create new pki in /mnt/vpnserver/
-.\gpki init-pki /mnt/vpnserver -n my-vpn-server
-
-# Create a CA for the new pki (the script will recognize the pki by name cause it will keep track of newly created pkis in a .cache file like name:path-to-pkiconf) 
-.\gpki build-ca my-vpn-server <CA COMMON NAME>
-
-# The server client would work similarly
-.\gpki build-server my-vpn-server <SERVER COMMON NAME>
-.\gpki build-client my-vpn-server <CLIENT COMMON NAME>
-
-# Also more options will be added for each subcommand, e.g 
-.\gpki build-client my-vpn-server Airan --keysize 4096 ~ this would override the default 2048 keysize
-
-# Summary
-- The idea is to manage multiple pkis, not just one
-- With each pki created, a .pkiconf file will be created to store information + a line to a cache file will be added with format PKINAME:path-to-pkiconf
-so that it will be easy to identify an existing pki and its resources
-- Options for each subcommand will be added to be able to modify the original defaults
-- Every action taken on a pki will be registered in a general log + the actual pki log
-
-
-[ SCRIPT IMPLEMENTATION IDEAS ]
-
-function InitPki([String] $pki_dir){
-  // Create ca/server/clients directories inside $pki_dir
-  // and create the pki.config file which is a ps1 file that stores variables 
-  // containing each path or relevant data, e.g [Uint32] $default_keysize = 2048
-}
-function BuildCA([String] $CA_CN, [String] $pki_config_file = "."){
-  // If pki_config_file == '.' look for .pkiconf file in the current directory (or smth like that)
-  // Get info about pki directories and config from the .pkiconf file and create a self-signed CA
-  // Note: the .pkiconf file would also contain the paths to the ca.cnf cl.cnf and sv.cnf templates, also
-  // client.ovpn and server.ovpn
-}

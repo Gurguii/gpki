@@ -1,5 +1,5 @@
-#include "../profiles/profiles.hpp"
 #include "../globals.hpp"
+#include "../profiles/profiles.hpp"
 namespace gpki {
 
 int build_ca() {
@@ -7,11 +7,10 @@ int build_ca() {
   Profiles::Get(Globals::profile_name, info);
   char command[1024];
   snprintf(command, sizeof(command),
-           "openssl req -config %s -new -x509 -keyout %s/ca-key.pem -out "
-           "%s/ca-crt.pem -nodes",
-           info.openssl_config.c_str(), info.ca.c_str(), info.ca.c_str());
-  printf("command -> %s\n", command);
-  return -1;
+           "openssl req -config %s -new -x509 -keyout %s%sca-key.pem -out "
+           "%s%sca-crt.pem -nodes",
+           info.openssl_config.c_str(), info.ca.c_str(), SLASH, info.ca.c_str(),
+           SLASH);
   if (system(command)) {
     // fail
     return -1;
@@ -27,10 +26,10 @@ int build_ca(const char *CN) {
   Profiles::Get(Globals::profile_name, info);
   char command[1024];
   snprintf(command, sizeof(command),
-           "openssl req -config %s -new -x509 -keyout %s/%s-key.pem -out "
-           "%s/%s-crt.pem -subj='/CN=%s' -nodes",
-           info.openssl_config.c_str(), info.keys.c_str(), CN,
-           info.certs.c_str(), CN, CN);
+           "openssl req -config %s -new -x509 -keyout %s%s%s-key.pem -out "
+           "%s%s%s-crt.pem -subj='/CN=%s' -nodes",
+           info.openssl_config.c_str(), info.keys.c_str(), SLASH, CN,
+           info.certs.c_str(), SLASH, CN, CN);
   if (system(command)) {
     // fail
     return -1;

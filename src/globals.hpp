@@ -1,11 +1,11 @@
 #pragma once
+#include "gpki.hpp"
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
-#include <cstdint>
-
 enum class ACTION {
-#define GPKI_ACTION uint8_t 
+#define GPKI_ACTION uint8_t
   none = 0x00,
 #define ACTION_NONE static_cast<uint8_t>(ACTION::none)
   init_pki = 0x01,
@@ -24,7 +24,7 @@ public:
   static std::string base_dir;
   static std::string profiles_file;
   static std::string config_dir;
-  
+
   /* Variables */
   static std::string profile_name;
 
@@ -32,7 +32,7 @@ public:
   static uint8_t action;
 
   // OPTIONS
-  
+
   /* Methods */
   static void Initialize(int argc, const char **args);
 };
