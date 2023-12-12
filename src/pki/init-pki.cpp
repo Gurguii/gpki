@@ -123,6 +123,7 @@ void pki_init() {
     std::cout << "[+] Please introduce pki base dir (absolute path): ";
     std::getline(std::cin, input);
   } while (!IS_ABSOLUT_PATH(input.c_str()));
+
   path = std::move(input);
 
   // Check that we have write permissions in such path
@@ -153,20 +154,37 @@ void pki_init() {
   std::string sed_src = Globals::config_dir + SLASH + "gopenssl.cnf";
   std::string sed_dst = path + SLASH + "config" + SLASH + "gopenssl.cnf";
   // copy config directory to path
-  std::filesystem::copy(Globals::config_dir.c_str(), dstconfig.c_str());
-  // substitute required values in the config file
-  std::unordered_map<std::string, std::string> _map{
-      {"GPKI_BASEDIR", (path + SLASH + "pki")}};
-  custom_sed(sed_src.c_str(), _map, sed_dst.c_str());
+  std::filesystem::copy(Globals::config_dir.c_str(), dstconfig.c_str(),
+                        std::filesystem::copy_options::recursive);
 
+  // This dirty code is to basicly ensure that the path saved to gopenssl.cnf
+  // has '/' SLASHES no matter if it's windows or not
+#ifdef _WIN32
+  for (char &c : path) {
+    if (c == '\\') {
+      c = '/';
+    }
+  }
+#endif
+  /* Substittute GPKI_BASEDIR in gopenssl.cnf template */
+  std::unordered_map<std::string, std::string> _map{
+      {"GPKI_BASEDIR", (path + "/pki")}};
+  custom_sed(sed_src.c_str(), _map, sed_dst.c_str());
+#ifdef _WIN32
+  for (char &c : path) {
+    if (c == '/') {
+      c = '\\';
+    }
+  }
+#endif
   // 3. create .pkiconf file
   // auto contents = new std::string(4096 * 4, '\x00');
   char *pkifilecontents = (char *)malloc(16000);
-  memset(pkifilecontents, 0, 16000);
   if (pkifilecontents == nullptr) {
     std::cerr << "Couldn't allocate memory for .pkiconf\n";
     return;
   }
+  memset(pkifilecontents, 0, 16000);
   snprintf(pkifilecontents, 16000, pkiconf_template.data(), path.c_str(),
            profile_name.c_str(), path.c_str(), path.c_str(), path.c_str(),
            path.c_str(), path.c_str(), path.c_str(), path.c_str(), path.c_str(),

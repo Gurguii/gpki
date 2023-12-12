@@ -15,7 +15,7 @@ int main(int argc, const char **args) {
 
   if (Parse(argc, args)) {
     // something went wrong
-    usage();
+    // usage();
     return -1;
   };
 

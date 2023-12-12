@@ -7,7 +7,7 @@ const auto IS_ABSOLUT_PATH = [](const char *path) {
 #ifdef _WIN32
   return std::isalpha(*path);
 #else
-  return (*path == '/')
+  return (*path == '/');
 #endif
 };
 
