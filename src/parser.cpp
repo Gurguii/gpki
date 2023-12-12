@@ -1,4 +1,5 @@
 #include "globals.hpp"
+#include "help/usage.cpp"
 #include "profiles/profiles.hpp"
 #include <cstring>
 #include <fstream>
@@ -25,12 +26,14 @@ int Parse(int argc, const char **&_args) {
 
   if (args.size() == 0) {
     // No arguments supplied
+    usage();
     return -1;
   }
 
   // Check if user asking for help
   for (const std::string &opt : args) {
     if (opt == "-h" || opt == "--help") {
+      usage();
       return -1;
     }
   }

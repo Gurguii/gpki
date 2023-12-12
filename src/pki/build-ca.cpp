@@ -11,6 +11,7 @@ int build_ca() {
            "%s%sca-crt.pem -nodes",
            info.openssl_config.c_str(), info.ca.c_str(), SLASH, info.ca.c_str(),
            SLASH);
+  printf("command -> %s\n", command);
   if (system(command)) {
     // fail
     return -1;

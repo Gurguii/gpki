@@ -1,5 +1,4 @@
 #include "globals.cpp"
-#include "help/usage.cpp"
 #include "parser.cpp"
 #include "pki/build-ca.cpp"
 #include "pki/build-client.cpp"
