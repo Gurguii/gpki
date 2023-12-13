@@ -67,6 +67,7 @@ int Profiles::Add(std::string_view profile_name, std::string_view base_dir) {
   // add entry to .profiles file
   std::ofstream profiles_file(_path.data(), std::ios::binary | std::ios::app);
   profiles_file << profile_name << "=" << base_dir << "\n";
+  profiles_file.close();
   return 0;
 }
 
@@ -130,15 +131,16 @@ int Profiles::Get(std::string_view profile_name, profileInfo &pinfo) {
     return -1;
   }
 
-  std::ifstream pkiconf_contents(pkiconf_path, std::ios::in);
+  std::ifstream pkiconf_contents(pkiconf_path);
   if (!pkiconf_contents.is_open()) {
     std::cout << "couldn't open file '" << pkiconf_path << "'\n";
     return -1;
   }
-
-  printf("about to read lines...\n");
+  std::string line{};
   while (getline(pkiconf_contents, line)) {
-    if (line[0] == '#' || !line.find("=")) {
+    printf("line: %s\n", line.c_str());
+    fflush(0);
+    if (line[0] == '#' || !line.find("=") || line.size() == 0) {
       continue;
     }
     char *name = nullptr;
@@ -148,7 +150,7 @@ int Profiles::Get(std::string_view profile_name, profileInfo &pinfo) {
     if (name == nullptr) {
       // this shouldn't be reached, but in case
       // not a valid delimiter
-      return -1;
+      continue;
     }
     path = strtok_s(nullptr, "=", &path);
 

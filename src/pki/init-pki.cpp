@@ -135,7 +135,7 @@ void pki_init() {
 
   // 1. create directories
   for (const char *&dir : pki_structure_relative_directory_paths) {
-    if (!std::filesystem::create_directories(path + SLASH + dir)) {
+    if (std::filesystem::create_directories(path + SLASH + dir)) {
       // This shouldn't happen
       std::cout << "[FAIL] Create directory '" << dir << "' failed\n";
       // TODO - add cleanup function to delete what's been done
