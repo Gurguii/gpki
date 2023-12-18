@@ -26,8 +26,12 @@ public:
   static std::string profiles_file;
   static std::string config_dir;
 
-  /* Variables */
+  /* Generic variables */
   static std::string profile_name;
+  static std::vector<std::string> subopts;
+
+  /* PKI variables */
+  static int keysize;
 
   // ACTIONS
   static uint8_t action;
@@ -35,5 +39,5 @@ public:
   // OPTIONS
 
   /* Methods */
-  static void Initialize(int argc, const char **args);
+  static void Initialize();
 };

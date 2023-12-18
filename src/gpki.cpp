@@ -10,7 +10,7 @@
 using namespace gpki;
 
 int main(int argc, const char **args) {
-  Globals::Initialize(argc, args);
+  Globals::Initialize();
 
   if (Parse(argc, args)) {
     // something went wrong

@@ -55,18 +55,20 @@ int Parse(int argc, const char **&_args) {
   // Initialize Profiles static class
   Profiles::Initialize();
 
-  if (args.size() == 1) {
-    int rcode = -1;
-    // Check if options have an action that does not require profile name
-    // (init-pki)
-    for (const std::string &st : args) {
-      // I always forget :)
-      if (st == "init-pki" || st == "pki-init") {
-        Globals::action = ACTION_INIT_PKI;
-        rcode = 0;
-      }
+  // Check if options have an action that does not require profile name
+  // (init-pki)
+  for (const std::string &st : args) {
+    // I always forget :)
+    if (st == "init-pki" || st == "pki-init") {
+      Globals::action = ACTION_INIT_PKI;
+      Globals::subopts = std::vector<std::string>(args.begin() + 1, args.end());
+      return 0;
     }
-    return rcode;
+  }
+
+  if (args.size() == 1) {
+    usage();
+    return -1;
   }
 
   // Store desired action + profile
@@ -79,8 +81,9 @@ int Parse(int argc, const char **&_args) {
     std::cerr << "[error] Profile '" << profile << "' not found\n";
     return -1;
   }
-
+  Globals::subopts = std::vector<std::string>(args.begin() + 2, args.end());
   Globals::profile_name = profile;
+
   // Set action
   Globals::action = ((action == "build-ca")       ? ACTION_BUILD_CA
                      : (action == "build-server") ? ACTION_BUILD_SERVER

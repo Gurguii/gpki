@@ -3,6 +3,9 @@
 namespace gpki {
 
 int build_ca() {
+  for (const std::string &st : Globals::subopts) {
+    std::cout << "subopt -> " << st << "\n";
+  }
   profileInfo info;
   Profiles::Get(Globals::profile_name, info);
   char command[1024];
@@ -11,7 +14,6 @@ int build_ca() {
            "%s%sca-crt.pem -nodes",
            info.openssl_config.c_str(), info.ca.c_str(), SLASH, info.ca.c_str(),
            SLASH);
-  printf("command -> %s\n", command);
   if (system(command)) {
     // fail
     return -1;

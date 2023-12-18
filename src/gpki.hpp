@@ -15,8 +15,8 @@ const auto IS_ABSOLUT_PATH = [](const char *path) {
 /* WINDOWS STUFF */
 #define CURRENT_PATH std::filesystem::current_path().string()
 #define SLASH "\\"
-/* LINUX STUFF */
 #else
+/* LINUX STUFF */
 #define CURRENT_PATH std::filesystem::current_path()
 #define SLASH "/"
 #endif
