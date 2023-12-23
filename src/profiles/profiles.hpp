@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <map>
 
 #include "../globals.hpp"
@@ -49,5 +50,9 @@ public:
   static int Remove(std::string_view profile_name);
   /* Fill pinfo structure with info about profile with name 'profile_name' */
   static int Get(std::string_view profile_name, profileInfo &pinfo);
+  /* Print .profiles file */
+  static int List();
+  /* Show formatted info about a profile */
+  static int ShowInfo(std::string_view profile_name);
 };
 } // namespace gpki

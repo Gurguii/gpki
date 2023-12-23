@@ -1,13 +1,4 @@
 #include "profiles.hpp"
-const auto has = [](std::string_view st, char c) {
-  for (int i = 0; i < st.size(); ++i) {
-    if (st[i] == c) {
-      return 1;
-    }
-  }
-  return 0;
-};
-
 namespace gpki {
 // Loads variables declared in the current profile's .pkiconf into
 // _profiles
@@ -34,12 +25,20 @@ int Profiles::Initialize() {
 
     char *key = nullptr;
     char *value = nullptr;
+    #ifdef _WIN32
     key = strtok_s((char *)line.c_str(), "=", &value);
+    #else
+key = strtok_r((char*)line.c_str(), "=", &value);
+  #endif
     if (key == nullptr) {
       std::cerr << "null key\n";
       return -1;
     }
+    #ifdef _WIN32
     value = strtok_s(nullptr, "=", &value);
+    #else
+value = strtok_r(nullptr, "=", &value);
+    #endif
     if (value == nullptr) {
       std::cerr << "null value\n";
       return -1;
@@ -72,14 +71,6 @@ int Profiles::Add(std::string_view profile_name, std::string_view base_dir) {
 }
 
 int Profiles::Remove(std::string_view profile_name) {
-  if (_profiles.empty()) {
-    // profile is empty
-    return -1;
-  }
-  if (!Find(profile_name)) {
-    // profile not found
-    return -1;
-  }
   std::ifstream profiles_file(_path.data());
   std::ofstream tmp_profile_file(".tmp.profiles");
   std::string line;
@@ -91,22 +82,25 @@ int Profiles::Remove(std::string_view profile_name) {
 
     char *path = nullptr;
     char *name = nullptr;
+    #ifdef _WIN32
     path = strtok_s(&line[0], "=", &name);
-    if (path == nullptr) {
-      std::cerr << "null path\n";
-      return -1;
-    }
+    #else
+name = strtok_r(&line[0], "=", &path);
+    #endif
+    #ifdef _WIN32
     name = strtok_s(nullptr, "=", &name);
-    if (name == nullptr) {
-      std::cerr << "null name\n";
-      return -1;
-    }
+    #else
+path = strtok_r(nullptr, "=", &path);
+    #endif
     if (strcmp(name, profile_name.data())) {
       // not the profile, write the line to tmpfile
-      tmp_profile_file << name << "=" << path << "\n";
+      tmp_profile_file << path << "=" << name << "\n";
+    }else{
+      if(std::filesystem::remove_all(path) == -1){
+        Globals::lasterror = "Couldn't recursively remove '" + std::string(path) + "'\n";
+      };
     }
   }
-  std::filesystem::remove(_path);
   std::filesystem::rename(".tmp.profiles", _path);
   return 0;
 }
@@ -115,44 +109,45 @@ int Profiles::Remove(std::string_view profile_name) {
  * profile_name returns -1 on error 0 on success */
 int Profiles::Get(std::string_view profile_name, profileInfo &pinfo) {
   /* Variable delimiter is = */
-  if (_profiles.empty()) {
-    // profile is empty
-    return -1;
-  }
-  if (!Find(profile_name)) {
-    // profile not found
-    return -1;
-  }
   std::string pkiconf_path =
       _profiles[profile_name.data()] + SLASH + "config" + SLASH + ".pkiconf";
 
   if (!std::filesystem::exists(pkiconf_path)) {
-    std::cout << "file '" << pkiconf_path << "' doesn't exist\n";
+    Globals::lasterror = "file '" + std::string(pkiconf_path) + "' doesn't exist\n";
     return -1;
   }
 
   std::ifstream pkiconf_contents(pkiconf_path);
   if (!pkiconf_contents.is_open()) {
-    std::cout << "couldn't open file '" << pkiconf_path << "'\n";
+    Globals::lasterror = "couldn't open file '" + std::string(pkiconf_path) + "'\n";
     return -1;
   }
+
   std::string line{};
   while (getline(pkiconf_contents, line)) {
-    printf("line: %s\n", line.c_str());
-    fflush(0);
+    //printf("line: %s\n", line.c_str());
+    //fflush(0);
     if (line[0] == '#' || !line.find("=") || line.size() == 0) {
       continue;
     }
     char *name = nullptr;
     char *path = nullptr;
 
+    #ifdef _WIN32
     name = strtok_s(line.data(), "=", &path);
+    #else
+name = strtok_r(line.data(), "=", &path);
+    #endif
     if (name == nullptr) {
       // this shouldn't be reached, but in case
       // not a valid delimiter
       continue;
     }
+    #ifdef _WIN32
     path = strtok_s(nullptr, "=", &path);
+    #else
+path = strtok_r(nullptr, "=", &path);
+    #endif
 
     if (!strcmp(name, "certs")) {
       pinfo.certs = path;
@@ -176,4 +171,32 @@ int Profiles::Get(std::string_view profile_name, profileInfo &pinfo) {
   }
   return 0;
 };
+int Profiles::List(){
+  std::ifstream file(Globals::profiles_file);
+  std::string line;
+  while(std::getline(file,line)){
+    if(line[0] == '#' || !line.find('='))
+    {continue;}
+    char *profile_name;
+    char *source_path;
+    #ifdef _WIN32
+    profile_name = strtok_s(&line[0], "=", &source_path);
+    source_path = strtok_s(&line[0], "=", &source_path); 
+    #else
+    profile_name = strtok_r(&line[0], "=", &source_path);
+    source_path = strtok_r(nullptr, "=", &source_path);
+    #endif
+    printf("== %s ==\nsource directory -> %s\n", profile_name, source_path);
+  }
+  return 0;
+    }
+int Profiles::ShowInfo(std::string_view profile_name){
+  profileInfo pinfo;
+  if(Profiles::Get(profile_name, pinfo)){
+    return -1;
+  };
+  /* Print formatted output */
+  printf("== %s ==\nopenssl.conf: %s\n", profile_name.data(), pinfo.openssl_config.c_str());
+  return 0;
+}
 } // namespace gpki

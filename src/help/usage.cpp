@@ -7,7 +7,7 @@ void usage()
 Author: Airán 'Gurguii' Gómez
 Description: gpki helps creating/managing pki's mainly focused for VPN use
 
-Usage: gpki <action> <options>                                                        
+Usage: gpki <action> <profile> <options>                                                        
                                                                                          
 [ ACTIONS ]                                                                              
 init-pki | build-ca | build-server | build-client | remove-profile | remove-all-profiles 

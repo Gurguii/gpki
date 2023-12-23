@@ -1,4 +1,5 @@
 #include "globals.cpp"
+#include "globals.hpp"
 #include "parser.cpp"
 #include "pki/build-ca.cpp"
 #include "pki/build-client.cpp"
@@ -20,6 +21,7 @@ int main(int argc, const char **args) {
 
   /* Check action and call appropiate method */
   switch (static_cast<uint8_t>(Globals::action)) {
+  /* PKI ACTIONS */
   case (ACTION_INIT_PKI):
     pki_init();
     break;
@@ -32,14 +34,28 @@ int main(int argc, const char **args) {
   case (ACTION_BUILD_CLIENT):
     build_client();
     break;
+  /* PROFILE ACTIONS */
+  case (ACTION_PROFILE_LIST):
+    Profiles::List();
+    break;
+  case (ACTION_PROFILE_REMOVE):
+    Profiles::Remove(Globals::profile_name);
+    break;
+  case (ACTION_PROFILE_INFO):
+    Profiles::ShowInfo(Globals::profile_name);
+    break;
   case (ACTION_NONE):
     // no action to be done
+    std::cout << "ACTION = NONE\n";
     return -1;
   default:
     // should never happen
     std::cerr << "[error] no proper action given\n";
     return -1;
   };
-
+  
+  if(!Globals::lasterror.empty()){
+    std::cout << Globals::lasterror << "\n";
+  }
   return 0;
 }

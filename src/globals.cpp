@@ -9,8 +9,12 @@ std::string Globals::profile_name;
 /* Initialized by parser() */
 std::vector<std::string> Globals::subopts;
 
-/* Default value */
+/* Default values */
+uint8_t Globals::prompt = 0;
 int Globals::keysize = 2048;
+std::string Globals::keyalgorithm = "rsa";
+std::string Globals::outformat = "PEM";
+std::string Globals::lasterror = "";
 
 GPKI_ACTION Globals::action = ACTION_NONE;
 

@@ -135,19 +135,11 @@ void pki_init() {
 
   // 1. create directories
   for (const char *&dir : pki_structure_relative_directory_paths) {
-#ifdef _WIN32
     if (!std::filesystem::create_directories(path + SLASH + dir)) {
       std::cout << "[FAIL] Create directory '" << dir << "' failed\n";
       // TODO - add cleanup function to delete what's been done
       // e.g remove globals::base_dir
     };
-#else
-    if (std::filesystem::create_directories(path + SLASH + dir)) {
-      std::cout << "[FAIL] Create directory '" << dir << "' failed\n";
-      // TODO - add cleanup function to delete what's been done
-      // e.g remove globals::base_dir
-    };
-#endif
   }
   // 2. create files
   std::ofstream(path + SLASH + "pki" + SLASH + "crl" + SLASH + "crlnumber")

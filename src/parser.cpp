@@ -8,7 +8,7 @@
 
 /* As reference
  * ./gpki [action] [profile-name] [options]
- * ./gpki build-ca myvpnserver -cn myCA
+ * ./gpki build-ca myvpnserver -cn myCA -noprompt -verbose [1-3](default 0 = no verbose)
  * ./gpki init-pki */
 
 /*
@@ -56,14 +56,17 @@ int Parse(int argc, const char **&_args) {
   Profiles::Initialize();
 
   // Check if options have an action that does not require profile name
-  // (init-pki)
+  // (init-pki, profiles-list)
   for (const std::string &st : args) {
     // I always forget :)
     if (st == "init-pki" || st == "pki-init") {
       Globals::action = ACTION_INIT_PKI;
       Globals::subopts = std::vector<std::string>(args.begin() + 1, args.end());
       return 0;
-    }
+    }else if(st == "profiles-list"){
+      Globals::action = ACTION_PROFILE_LIST;
+      return 0;
+    }     
   }
 
   if (args.size() == 1) {
@@ -85,10 +88,13 @@ int Parse(int argc, const char **&_args) {
   Globals::profile_name = profile;
 
   // Set action
-  Globals::action = ((action == "build-ca")       ? ACTION_BUILD_CA
-                     : (action == "build-server") ? ACTION_BUILD_SERVER
-                     : (action == "build-client") ? ACTION_BUILD_CLIENT
-                                                  : ACTION_NONE);
+  Globals::action =  ( (action == "build-ca")       ? ACTION_BUILD_CA
+                     : (action == "build-server")   ? ACTION_BUILD_SERVER
+                     : (action == "build-client")   ? ACTION_BUILD_CLIENT
+                     : (action == "profile-remove") ? ACTION_PROFILE_REMOVE
+                     : (action == "profile-info")   ? ACTION_PROFILE_INFO
+                     : ACTION_NONE
+  );
   // ./gpki <action> <profile> [options]
   // action will always be args[1] and profile args[2]
   int pos = 0;

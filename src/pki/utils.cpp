@@ -24,24 +24,24 @@ int GetCertCreationInfo(std::string_view profile_name, CertCreationInfo &buff,
     // SERVER
     // csr/key creation command
     snprintf(buff.csr_command, sizeof(buff.csr_command),
-             "openssl req -config %s -new -out %s -keyout %s -nodes",
-             info.openssl_config.c_str(), buff.csr, buff.key);
+             "openssl req -config %s -newkey %i:%s -outform %s -out %s -keyout %s -noenc",
+             info.openssl_config.c_str(), Globals::keysize, Globals::keyalgorithm.c_str(),Globals::outformat.c_str(), buff.csr, buff.key);
     // crt signing command
     snprintf(buff.crt_command, sizeof(buff.crt_command),
-             "openssl ca -config %s --notext -batch -in %s -out %s -extfile %s",
-             info.openssl_config.c_str(), buff.csr, buff.crt,
-             (info.x509 + SLASH + "server").c_str());
+             "openssl ca -config %s %s -in %s -out %s -extfile %s %s",
+             info.openssl_config.c_str(), Globals::outformat.c_str(), buff.csr, buff.crt,
+             (info.x509 + SLASH + "server").c_str(), Globals::prompt ? "\x00" : "--notext -batch");
   } else if (type == x509_client) {
     // CLIENT
     // csr/key creation command
     snprintf(buff.csr_command, sizeof(buff.csr_command),
-             "openssl req -config %s -new -out %s -keyout %s -nodes",
-             info.openssl_config.c_str(), buff.csr, buff.key);
+             "openssl req -config %s -newkey %i:%s -outform %s -out %s -keyout %s -noenc",
+             info.openssl_config.c_str(), Globals::keysize, Globals::keyalgorithm.c_str(), Globals::outformat.c_str(), buff.csr, buff.key);
     // crt signing command
     snprintf(buff.crt_command, sizeof(buff.csr_command),
-             "openssl ca -config %s --notext -batch -in %s -out %s -extfile %s",
+             "openssl ca -config %s -in %s -out %s -extfile %s %s",
              info.openssl_config.c_str(), buff.csr, buff.crt,
-             (info.x509 + SLASH + "client").c_str());
+             (info.x509 + SLASH + "client").c_str(), Globals::prompt ? "\x00" : "--notext -batch");
   }
   return 0;
 };
