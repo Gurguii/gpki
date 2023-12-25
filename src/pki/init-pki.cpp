@@ -1,4 +1,3 @@
-#include "../profiles/profiles.hpp"
 #include "../utils/file_utils.cpp"
 #include <filesystem>
 #include <fstream>
@@ -7,7 +6,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
+#include "../globals.hpp"
+#include "../profiles/sqlite3_db.hpp"
 namespace gpki {
 #ifdef _WIN32
 std::string pkiconf_template = R"(
@@ -115,7 +115,7 @@ void pki_init() {
   do {
     std::cout << "[+] Please introduce desired profile name: ";
     std::getline(std::cin, input);
-  } while (Profiles::Find(input));
+  } while (db::profile_exists(profile_name));
 
   profile_name = input;
 

@@ -1,17 +1,14 @@
 #pragma once
 #define GPKI_UTILS
-#include "../profiles/profiles.hpp"
+#include "../globals.hpp"
+#include "../profiles/sqlite3_db.hpp"
+#include <cstring>
+#include <fstream>
+
 #define DEFAULT_SUBJECT                                                        \
   "/C=ES/ST=CANARIAS/L=LAS PALMAS/O=MARIWANOS/CN=%s/emailAddress=noemail"
+
 namespace gpki {
-struct CertCreationInfo {
-  char serial[10];
-  char csr[512];
-  char crt[512];
-  char key[512];
-  char csr_command[2048];
-  char crt_command[2048];
-};
 enum class x509_type {
   client = 0x01,
 #define x509_client x509_type::client

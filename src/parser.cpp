@@ -1,11 +1,14 @@
 #include "globals.hpp"
 #include "help/usage.cpp"
-#include "profiles/profiles.hpp"
+#ifdef GPKI_USE_SQLITE
+#include "profiles/sqlite3_db.hpp"
+#else
+#include "profiles/plaintext_db.hpp"
+#endif
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <vector>
-
 /* As reference
  * ./gpki [action] [profile-name] [options]
  * ./gpki build-ca myvpnserver -cn myCA -noprompt -verbose [1-3](default 0 = no verbose)
@@ -38,22 +41,22 @@ int Parse(int argc, const char **&_args) {
     }
   }
 
-  // Check if profiles file exists
-  if (!std::filesystem::exists(Globals::profiles_file)) {
-    std::cout << "Creating file '" << Globals::profiles_file << "'\n";
-    // File does not exist, create it
-    std::ofstream(Globals::profiles_file, std::ios::app);
-    if (!std::filesystem::exists(Globals::profiles_file)) {
-      std::cerr << "[error] couldn't create missing .profiles file -> "
-                << Globals::profiles_file;
+  // Check if profiles database exists
+  if (!std::filesystem::exists(Globals::profiles_db)) {
+    std::cout << "Creating file '" << Globals::profiles_db << "'\n";
+    // db file does not exist, create it
+    std::ofstream(Globals::profiles_db, std::ios::app);
+    if (!std::filesystem::exists(Globals::profiles_db)) {
+      std::cerr << "[error] couldn't create missing .gpki.db file -> "
+                << Globals::profiles_db;
       return -1;
     } else {
-      std::cout << Globals::profiles_file << " file created\n";
+      std::cout << Globals::profiles_db << " file created\n";
     }
   }
 
-  // Initialize Profiles static class
-  Profiles::Initialize();
+  // Initialize sqlite3 database 
+  db::initialize(Globals::profiles_db.c_str());
 
   // Check if options have an action that does not require profile name
   // (init-pki, profiles-list)

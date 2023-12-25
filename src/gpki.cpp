@@ -1,5 +1,9 @@
+#ifdef GPKI_USE_SQLITE
+#include "profiles/sqlite3_db.cpp"
+#else
+#include "profiles/plaintext_db.cpp"
+#endif
 #include "globals.cpp"
-#include "globals.hpp"
 #include "parser.cpp"
 #include "pki/build-ca.cpp"
 #include "pki/build-client.cpp"
@@ -47,7 +51,7 @@ int main(int argc, const char **args) {
   case (ACTION_NONE):
     // no action to be done
     std::cout << "ACTION = NONE\n";
-    return -1;
+    break;
   default:
     // should never happen
     std::cerr << "[error] no proper action given\n";

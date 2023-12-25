@@ -1,9 +1,15 @@
-#include "profiles.hpp"
+#include "[old] plaintext_db.hpp"
 namespace gpki {
 // Loads variables declared in the current profile's .pkiconf into
 // _profiles
-int Profiles::Initialize() {
-  _path = Globals::profiles_file;
+int PlaintextDB::Initialize() {
+  sqlite3* db;
+  sqlite3_open(Globals::profiles_db.data(), &db);
+  if(db == nullptr){
+    return -1;
+  }
+
+  _path = Globals::profiles_db;
   _filesize = std::filesystem::file_size(_path);
 
   std::ifstream file(_path.data());
@@ -48,13 +54,13 @@ value = strtok_r(nullptr, "=", &value);
   return 0;
 }
 
-int Profiles::Find(std::string_view key) {
+int PlaintextDB::Find(std::string_view key) {
   return (_profiles.find(key.data()) == _profiles.end()) ? 0 : 1;
 }
 
-int Profiles::Total() { return _profiles.size(); }
+int PlaintextDB::Total() { return _profiles.size(); }
 
-int Profiles::Add(std::string_view profile_name, std::string_view base_dir) {
+int PlaintextDB::Add(std::string_view profile_name, std::string_view base_dir) {
   if (Find(profile_name)) {
     // profile found
     std::cout << "profile '" << profile_name << "' already exists\n";
@@ -64,17 +70,17 @@ int Profiles::Add(std::string_view profile_name, std::string_view base_dir) {
   _profiles[profile_name.data()] = base_dir;
   std::cout << "[info] Adding entry for '" << profile_name << "'\n";
   // add entry to .profiles file
-  std::ofstream profiles_file(_path.data(), std::ios::binary | std::ios::app);
-  profiles_file << profile_name << "=" << base_dir << "\n";
-  profiles_file.close();
+  std::ofstream profiles_db(_path.data(), std::ios::binary | std::ios::app);
+  profiles_db << profile_name << "=" << base_dir << "\n";
+  profiles_db.close();
   return 0;
 }
 
-int Profiles::Remove(std::string_view profile_name) {
-  std::ifstream profiles_file(_path.data());
+int PlaintextDB::Remove(std::string_view profile_name) {
+  std::ifstream profiles_db(_path.data());
   std::ofstream tmp_profile_file(".tmp.profiles");
   std::string line;
-  while (getline(profiles_file, line)) {
+  while (getline(profiles_db, line)) {
     if (line[0] == '#' || !line.find('=')) {
       // its a comment or does not contain delimiter =
       continue;
@@ -107,7 +113,7 @@ path = strtok_r(nullptr, "=", &path);
 
 /* Populates the profileInfo structure with info about profile with name
  * profile_name returns -1 on error 0 on success */
-int Profiles::Get(std::string_view profile_name, profileInfo &pinfo) {
+int PlaintextDB::Get(std::string_view profile_name, profileInfo &pinfo) {
   /* Variable delimiter is = */
   std::string pkiconf_path =
       _profiles[profile_name.data()] + SLASH + "config" + SLASH + ".pkiconf";
@@ -171,8 +177,8 @@ path = strtok_r(nullptr, "=", &path);
   }
   return 0;
 };
-int Profiles::List(){
-  std::ifstream file(Globals::profiles_file);
+int PlaintextDB::List(){
+  std::ifstream file(Globals::profiles_db);
   std::string line;
   while(std::getline(file,line)){
     if(line[0] == '#' || !line.find('='))
@@ -190,13 +196,13 @@ int Profiles::List(){
   }
   return 0;
     }
-int Profiles::ShowInfo(std::string_view profile_name){
+int PlaintextDB::ShowInfo(std::string_view profile_name){
   profileInfo pinfo;
-  if(Profiles::Get(profile_name, pinfo)){
+  if(PlaintextDB::Get(profile_name, pinfo)){
     return -1;
   };
   /* Print formatted output */
-  printf("== %s ==\nopenssl.conf: %s\n", profile_name.data(), pinfo.openssl_config.c_str());
+  printf("== %s ==\nopenssl.conf: %s\n", profile_name.data(), pinfo.openssl_config);
   return 0;
 }
 } // namespace gpki

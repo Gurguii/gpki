@@ -1,9 +1,30 @@
 #pragma once
-#include "gpki.hpp"
 #include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
+
+#define GPKI_USE_SQLITE
+#define STARTING_CRLNUMBER "1000\n"
+#define STARTING_SERIAL "01\n"
+
+const auto IS_ABSOLUT_PATH = [](const char *path) {
+#ifdef _WIN32
+  return std::isalpha(*path);
+#else
+  return (*path == '/');
+#endif
+};
+
+#ifdef _WIN32
+/* WINDOWS STUFF */
+#define CURRENT_PATH std::filesystem::current_path().string()
+#define SLASH "\\"
+#else
+/* LINUX STUFF */
+#define CURRENT_PATH std::filesystem::current_path()
+#define SLASH "/"
+#endif
 
 enum class ACTION : uint8_t{
 #define GPKI_ACTION uint8_t
@@ -37,7 +58,7 @@ class Globals {
 public:
   /* Metainfo */
   static std::string base_dir;
-  static std::string profiles_file;
+  static std::string profiles_db;
   static std::string config_dir;
 
   /* Generic variables */

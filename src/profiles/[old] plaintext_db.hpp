@@ -8,28 +8,26 @@
 #include <iostream>
 #include <sstream>
 #include <map>
-
+#include <sqlite3.h>
 #include "../globals.hpp"
 
-namespace gpki {
-struct profileInfo {
-  /* PKI paths */
-  std::string certs{};
-  std::string keys{};
-  std::string ca{};
-  std::string reqs{};
-  std::string serial{};
-  /* config paths */
-  std::string x509{};
-  std::string templates{};
-  std::string openssl_config{};
-  /* log path */
-  std::string logs{};
+struct profileInfo
+{
+  char *name;
+  char *keys;
+  char *certs;
+  char *ca;
+  char *reqs;
+  char *serial;
+  char *x509;
+  char *templates;
+  char *openssl_config;
+  char *logs;
 };
-
+namespace gpki {
 /* Static class to manage the contents of the .profile file containing each
  * profile and its root path */
-class Profiles {
+class PlaintextDB {
 public:
   static inline std::map<std::string, std::string> _profiles{};
   static inline std::string_view _path{};
