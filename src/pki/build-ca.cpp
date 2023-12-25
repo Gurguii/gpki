@@ -8,13 +8,9 @@ int build_ca() {
   }
   ProfileInfo info;
   db::populate_ProfileInfo(Globals::profile_name, info);
-  char command[1024];
-  snprintf(command, sizeof(command),
-           "openssl req -config %s -new -x509 -keyout %s%sca-key.pem -out "
-           "%s%sca-crt.pem -nodes",
-           info.openssl_config, info.ca, SLASH, info.ca,
-           SLASH);
-  if (system(command)) {
+  std::string command = "openssl req -config " + info.openssl_config + "-new -x509 -keyout " + info.ca + SLASH + "ca-key.pem -out " + info.ca + SLASH + "ca-crt.pem -noenc";
+  printf("BUILD-CA command -> %s\n",command.c_str());
+  if (system(command.c_str())) {
     // fail
     return -1;
   };
@@ -24,13 +20,8 @@ int build_ca() {
 int build_ca(const char *CN) {
   ProfileInfo info;
   db::populate_ProfileInfo(Globals::profile_name,info);
-  char command[1024];
-  snprintf(command, sizeof(command),
-           "openssl req -config %s -new -x509 -keyout %s%s%s-key.pem -out "
-           "%s%s%s-crt.pem -subj='/CN=%s' -nodes",
-           info.openssl_config, info.keys, SLASH, CN,
-           info.certs, SLASH, CN, CN);
-  if (system(command)) {
+  std::string command = "openssl req -config " + info.openssl_config + "-new -x509 -keyout " + info.keys + SLASH + CN + "-key.pem -out " + info.certs + SLASH + CN + "-subj = '/CN=" + CN + "' -noenc"; 
+  if (system(command.c_str())) {
     // fail
     return -1;
   };

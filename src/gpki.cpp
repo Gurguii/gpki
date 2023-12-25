@@ -1,16 +1,10 @@
-#ifdef GPKI_USE_SQLITE
 #include "profiles/sqlite3_db.cpp"
-#else
-#include "profiles/plaintext_db.cpp"
-#endif
 #include "globals.cpp"
 #include "parser.cpp"
 #include "pki/build-ca.cpp"
 #include "pki/build-client.cpp"
 #include "pki/build-server.cpp"
 #include "pki/init-pki.cpp"
-#include "pki/utils.cpp"
-#include "profiles/profiles.cpp"
 #include <iostream>
 using namespace gpki;
 
@@ -40,13 +34,13 @@ int main(int argc, const char **args) {
     break;
   /* PROFILE ACTIONS */
   case (ACTION_PROFILE_LIST):
-    Profiles::List();
+    db::display_profiles();
     break;
   case (ACTION_PROFILE_REMOVE):
-    Profiles::Remove(Globals::profile_name);
+    db::delete_profile(Globals::profile_name);
     break;
   case (ACTION_PROFILE_INFO):
-    Profiles::ShowInfo(Globals::profile_name);
+    db::select_profile(Globals::profile_name);
     break;
   case (ACTION_NONE):
     // no action to be done

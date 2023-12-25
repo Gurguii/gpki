@@ -1,3 +1,4 @@
+#pragma once
 #ifdef _WIN32
 #define GPKI_MAX_PATH MAX_PATH
 #else
@@ -8,42 +9,47 @@
 #include <unordered_map>
 #include <cstring>
 #include <sqlite3.h>
+#include <fstream>
+#include "../globals.hpp"
+
+#define DEFAULT_CRLNUMBER "1000"
+#define DEFAULT_SERIAL "1"
+#define DEFAULT_SUBJECT "/C=ES/ST=CANARIAS/L=LAS PALMAS/O=MARIWANOS/CN=%s/emailAddress=noemail"
 
 struct ProfileInfo
 {
-  char name[GPKI_MAX_PATH]{};
-  char keys[GPKI_MAX_PATH]{};
-  char certs[GPKI_MAX_PATH]{};
-  char ca[GPKI_MAX_PATH]{};
-  char reqs[GPKI_MAX_PATH]{};
-  char serial[GPKI_MAX_PATH]{};
-  char x509[GPKI_MAX_PATH]{};
-  char templates[GPKI_MAX_PATH]{};
-  char openssl_config[GPKI_MAX_PATH]{};
-  char logs[GPKI_MAX_PATH]{};
+  std::string name{};
+  std::string source_dir{};
+  std::string keys{};
+  std::string certs{};
+  std::string ca{};
+  std::string reqs{};
+  std::string serial{};
+  std::string x509{};
+  std::string templates{};
+  std::string openssl_config{};
+  std::string logs{};
+  std::string database{};
+  std::string crl{};
 };
 /*
 struct ProfileInfo
 {
-  char *name;
-  char *keys;
-  char *certs;
-  char *ca;
-  char *reqs;
-  char *serial;
-  char *x509;
-  char *templates;
-  char *openssl_config;
-  char *logs;
+  std::string *name;
+  std::string *keys;
+  std::string *certs;
+  std::string *ca;
+  std::string *reqs;
+  std::string *serial;
+  std::string *x509;
+  std::string *templates;
+  std::string *openssl_config;
+  std::string *logs;
 };
 */
-struct CertCreationInfo {
-  char serial[10];
-  char csr[512];
-  char crt[512];
-  char key[512];
-  char csr_command[2048];
-  char crt_command[2048];
+struct CertCreationCommands {
+  std::string csr_command{};
+  std::string crt_command{};
 };
 namespace gpki
 {
@@ -56,23 +62,24 @@ private:
   /* Methods */
   static int open_db();
   static int close_db();
-  static const char *& get_error();
-
+    /* Internal function used by db::insert_profile() to create profile files */
+  static int create_files(ProfileInfo *pinfo, std::string_view src_config_dir, std::string_view dst_config_dir);
 public:
   // Constructor
   static int initialize(const char *dbpath);
   
   // Crud
-  static int insert_profile(ProfileInfo &pinfo);
+  static int insert_profile(ProfileInfo &pinfo,std::string_view src_config_dir, std::string_view dst_config_dir);
   static int select_profile(std::string_view profile_name);
   static int delete_profile(std::string_view profile_name);
   static int update_database(std::string_view profile_name, std::unordered_map<std::string,std::string> values);
 
   // Printing
   static int display_profiles();
+  static const char *& get_error();
 
   // Structure population
-  static int populate_CertCreationInfo(std::string_view profile_name, CertCreationInfo &buff);
+  static int populate_CertCreationCommands(ProfileInfo *ptr, std::string_view profile_name, CertCreationCommands &buff);
   static int populate_ProfileInfo(std::string_view profile_name, ProfileInfo &buff);
   
   // 

@@ -17,6 +17,7 @@ uint8_t Globals::prompt = 1;
 int Globals::keysize = 2048;
 std::string Globals::keyalgorithm = "rsa";
 std::string Globals::outformat = "PEM";
+GPKI_X509 Globals::x509_extension = X509_NONE;
 
 /* Last error message */
 std::string Globals::lasterror = "";

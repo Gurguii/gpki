@@ -1,10 +1,6 @@
 #include "globals.hpp"
 #include "help/usage.cpp"
-#ifdef GPKI_USE_SQLITE
 #include "profiles/sqlite3_db.hpp"
-#else
-#include "profiles/plaintext_db.hpp"
-#endif
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -82,11 +78,12 @@ int Parse(int argc, const char **&_args) {
   std::string_view profile = args[1];
 
   // Check profile
-  if (!Profiles::Find(profile)) {
+  if (!db::profile_exists(profile)) {
     // Profile not found
     std::cerr << "[error] Profile '" << profile << "' not found\n";
     return -1;
   }
+
   Globals::subopts = std::vector<std::string>(args.begin() + 2, args.end());
   Globals::profile_name = profile;
 
@@ -98,8 +95,6 @@ int Parse(int argc, const char **&_args) {
                      : (action == "profile-info")   ? ACTION_PROFILE_INFO
                      : ACTION_NONE
   );
-  // ./gpki <action> <profile> [options]
-  // action will always be args[1] and profile args[2]
   int pos = 0;
   return 0;
 }

@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-#define GPKI_USE_SQLITE
 #define STARTING_CRLNUMBER "1000\n"
 #define STARTING_SERIAL "01\n"
 
@@ -54,6 +53,16 @@ enum class KEYTYPE : uint8_t{
 #define KEYTYPE_DER static_cast<uint8_t>(KEYTYPE::der)
 };
 
+enum class X509_EXT : uint8_t{
+  #define GPKI_X509 uint8_t
+  none = 0x00,
+#define X509_NONE static_cast<uint8_t>(X509_EXT::none)
+  client = 0x01,
+#define X509_CLIENT static_cast<uint8_t>(X509_EXT::client)
+  server = 0x03
+#define X509_SERVER static_cast<uint8_t>(X509_EXT::server)
+};
+
 class Globals {
 public:
   /* Metainfo */
@@ -73,6 +82,7 @@ public:
   static int keysize;
   static std::string keyalgorithm;
   static std::string outformat;
+  static GPKI_X509 x509_extension;
 
   /* Last error message */
   static std::string lasterror;

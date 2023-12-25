@@ -1,5 +1,4 @@
 #include "sqlite3_db.hpp"
-#include <cstring>
 
 
 namespace gpki
@@ -8,6 +7,7 @@ namespace gpki
 std::string __db_create_statement = R"(
 CREATE TABLE profiles (
   profile_name TEXT PRIMARY KEY NOT NULL,
+  source_dir TEXT,
   certs TEXT,
   keys TEXT,
   ca TEXT,
@@ -16,7 +16,9 @@ CREATE TABLE profiles (
   x509 TEXT,
   templates TEXT,
   openssl_config TEXT,
-  logs TEXT
+  logs TEXT,
+  database TEXT,
+  crl TEXT
 ))";
 #define CREATE_STATEMENT __db_create_statement.c_str()
 
@@ -31,32 +33,20 @@ const auto print_select_statement = [](void *ptr, int ncols, char **colvalues, c
   return 0;
 };
 
-const auto populate_CertCreationInfo_callback = [](void *ptr, int ncols, char **colvalues, char **colheaders){
-  for(int i = 0; i < ncols; ++i){
-    // printf("i=%i | %s:%s\n", i, *(colheaders+i), *(colvalues+i));
-    std::string_view header = *(colheaders +i);
-    if(header == "reqs"){
-      memcpy(((CertCreationInfo*)ptr)->csr, *(colvalues+i), strlen(*(colvalues+i)) );
-    }else if(header == "keys"){
-      memcpy(((CertCreationInfo*)ptr)->key, *(colvalues+i), strlen(*(colvalues+i)) );
-    }else if(header == "certs"){
-      memcpy(((CertCreationInfo*)ptr)->crt, *(colvalues+i), strlen(*(colvalues +i)) );
-    }
-  }
-  return 0;
-};
-
 const auto populate_ProfileInfo_callback = [](void *ptr, int ncols, char **colvalues, char **colheaders){
   ProfileInfo *_ptr = (ProfileInfo*)ptr;
-  memcpy(_ptr->certs,*(colvalues+1),strlen(*(colvalues+1)));
-  memcpy(_ptr->keys,*(colvalues+2),strlen(*(colvalues+2)));
-  memcpy(_ptr->ca,*(colvalues+3),strlen(*(colvalues+3)));
-  memcpy(_ptr->reqs,*(colvalues+4),strlen(*(colvalues+4)));
-  memcpy(_ptr->serial,*(colvalues+5),strlen(*(colvalues+5)));
-  memcpy(_ptr->x509,*(colvalues+6),strlen(*(colvalues+6)));
-  memcpy(_ptr->templates,*(colvalues+7),strlen(*(colvalues+7)));
-  memcpy(_ptr->openssl_config,*(colvalues+8),strlen(*(colvalues+8)));
-  memcpy(_ptr->logs,*(colvalues+9),strlen(*(colvalues+9)));
+  _ptr->source_dir = *(colvalues +1);
+  _ptr->certs = *(colvalues +2);
+  _ptr->keys = *(colvalues +3);
+  _ptr->ca = *(colvalues +4);
+  _ptr->reqs = *(colvalues +5);
+  _ptr->serial = *(colvalues +6);
+  _ptr->x509 = *(colvalues +7);
+  _ptr->templates = *(colvalues +8);
+  _ptr->openssl_config = *(colvalues +9);
+  _ptr->logs = *(colvalues +10);
+  _ptr->database = *(colvalues +11);
+  _ptr->crl = *(colvalues + 12);
   return 0;
 };
 
@@ -102,16 +92,41 @@ int db::initialize(const char *dbpath){
     sqlite3_exec(db::_db, CREATE_STATEMENT, nullptr, nullptr, nullptr);
     return sqlite3_close(db::_db) ? -1 : 0;
   }
-int db::insert_profile(ProfileInfo &pinfo){
+
+int db::create_files(ProfileInfo *pinfo, std::string_view src_config_dir, std::string_view dst_config_dir){
+  //
+  for(const std::string &st : {pinfo->database, pinfo->crl,pinfo->templates,pinfo->serial,pinfo->certs,pinfo->x509,pinfo->reqs,pinfo->logs,pinfo->keys,pinfo->ca}){
+    if(!std::filesystem::create_directories(st)){
+      lasterror = "Couldn't create directory"; 
+      // TODO - add cleanup function to delete done work if it fails
+      return -1;
+    };
+  }
+  // Create crlnumber,serial,index.txt files
+  std::ofstream(pinfo->crl+SLASH+"crlnumber").write(DEFAULT_CRLNUMBER,strlen(DEFAULT_CRLNUMBER));
+  std::ofstream(pinfo->serial+SLASH+"serial").write(DEFAULT_SERIAL,strlen(DEFAULT_SERIAL));
+  std::ofstream(pinfo->database+SLASH+"index.txt",std::ios::app);
+
+  // Copy config directory
+  std::filesystem::copy(src_config_dir.data(),dst_config_dir.data(),std::filesystem::copy_options::recursive);
+  return 0;
+};
+int db::insert_profile(ProfileInfo &pinfo, std::string_view src_config_dir, std::string_view dst_config_dir){
     char sql[1024];
-    if(snprintf(sql,sizeof(sql),INSERT_TEMPLATE,pinfo.name, pinfo.certs, pinfo.keys, pinfo.ca, pinfo.reqs, pinfo.serial, pinfo.x509, pinfo.templates, pinfo.openssl_config, pinfo.logs) <= 0){
+    if(snprintf(sql,sizeof(sql),INSERT_TEMPLATE,pinfo.name.c_str(), pinfo.certs.c_str(), pinfo.keys.c_str(), pinfo.ca.c_str(), pinfo.reqs.c_str(), pinfo.serial.c_str(), pinfo.x509.c_str(), pinfo.templates.c_str(), pinfo.openssl_config.c_str(), pinfo.logs.c_str()) <= 0){
       lasterror = "in file 'sqlite3_facilities.cpp' line 71 -> snprintf() failed\n";
     };
     if(open_db()){
       return -1;
     }
     //printf("insert statement -> %s\n", sql);
-    sqlite3_exec(db::_db, sql, nullptr, nullptr, nullptr);
+    if(sqlite3_exec(db::_db, sql, nullptr, nullptr, nullptr) != SQLITE_OK){
+    printf("insert_query failed -> %s\n", sql);
+      return -1;
+    };
+    if(create_files(&pinfo,src_config_dir,dst_config_dir)){
+      return -1;
+    }; 
     return close_db() ? -1 : 0;
   }
   int db::select_profile(std::string_view profile_name){
@@ -157,14 +172,43 @@ int db::update_database(std::string_view profile_name, std::unordered_map<std::s
   sqlite3_exec(db::_db,sql.c_str(),nullptr,nullptr,nullptr);
   return close_db() ? -1 : 0;
 }
-int db::populate_CertCreationInfo(std::string_view profile_name, CertCreationInfo &buff){
-  if(open_db()){
-    return -1;
-  }
-  std::string sql = "SELECT certs,keys,reqs FROM profiles WHERE profile_name = '" + std::string(profile_name) + "'";
-  sqlite3_exec(db::_db, sql.c_str(), populate_CertCreationInfo_callback, &buff,nullptr);
-  return close_db() ? -1 : 0;
+int db::populate_CertCreationCommands(ProfileInfo *ptr, std::string_view profile_name, CertCreationCommands &buff){
+  // Populate the command members
+  std::string serial{10,'\x00'};
+  std::ifstream(ptr->serial + SLASH + "serial").read(&serial[0],serial.size());
+  
+  std::string csrpath = ptr->reqs + SLASH + serial + "-csr.pem";
+  std::string crtpath = ptr->certs + SLASH + serial + "-crt.pem";
+  std::string keypath = ptr->keys + SLASH + serial + "-key.pem";
+
+  std::string csr_command = "openssl req -config " 
+    + ptr->openssl_config 
+    + " -newkey " 
+    + std::to_string(Globals::keysize) 
+    + ":" 
+    + Globals::keyalgorithm 
+    + " -outform " 
+    + Globals::outformat 
+    + " -out " 
+    + csrpath 
+    + " -keyout " 
+    + keypath 
+    + "-noenc";  
+
+  std::string crt_command = "openssl ca -config " 
+    + ptr->openssl_config 
+    + " -in " + csrpath 
+    + " -out " 
+    + crtpath 
+    + " -extfile "
+    + (Globals::x509_extension == X509_CLIENT ? ptr->x509 + SLASH + "client" : ptr->x509 + SLASH + "server")
+    + (Globals::prompt ? "--notext -batch" : "\0");
+
+  buff.crt_command = std::move(crt_command);
+  buff.csr_command = std::move(csr_command);
+  return 0;
 };
+
 int db::populate_ProfileInfo(std::string_view profile_name, ProfileInfo &buff){
   if(open_db()){
     return -1;
@@ -187,12 +231,12 @@ int db::profile_exists(std::string_view profile_name){
 }
 } // namespace gpki
 
+/*
 #include <stdio.h>
 int main()
 {
   gpki::db::initialize("test.db");
   ProfileInfo info;
-  /*
   memcpy(info.name,"testprofile",11);
   memcpy(info.keys,"keypath",7);
   memcpy(info.certs,"certs",5);
@@ -204,7 +248,6 @@ int main()
   printf("cert -> %s\nkey -> %s\nreq -> %s\n", cinfo.crt, cinfo.key, cinfo.csr);
   gpki::db::populate_ProfileInfo("testprofile",info);
   printf("%s\n%s\n%s\n%s\n%s\n%s\n%s\n",info.openssl_config,info.certs,info.name,info.reqs,info.keys,info.ca,info.logs);
-  */
   if(gpki::db::profile_exists("testprofile")){
     printf("testprofile exists\n");
   }
@@ -213,3 +256,4 @@ int main()
   }
   return 0;
 }
+*/

@@ -74,7 +74,7 @@ std::vector<const char *> pki_structure_relative_directory_paths{
 int custom_sed(const char *tmplate,
                std::unordered_map<std::string, std::string> &keyvals,
                const char *outpath = nullptr) {
-  // the map will be something like
+  // map meaning:
   // 'key -> pattern to match'
   // 'value -> new value'
   if (!std::filesystem::exists(tmplate)) {
@@ -124,38 +124,35 @@ void pki_init() {
     std::getline(std::cin, input);
   } while (!IS_ABSOLUT_PATH(input.c_str()));
 
-  path = std::move(input);
+  path = input;
 
   // Check that we have write permissions in such path
   if (!hasWritePermissions(path)) {
     std::cout << "[error] Not write permissions in '" << path << "'\n";
     return;
   };
-  // Create PKI structure
-
-  // 1. create directories
-  for (const char *&dir : pki_structure_relative_directory_paths) {
-    if (!std::filesystem::create_directories(path + SLASH + dir)) {
-      std::cout << "[FAIL] Create directory '" << dir << "' failed\n";
-      // TODO - add cleanup function to delete what's been done
-      // e.g remove globals::base_dir
-    };
-  }
-  // 2. create files
-  std::ofstream(path + SLASH + "pki" + SLASH + "crl" + SLASH + "crlnumber")
-      .write(STARTING_CRLNUMBER, strlen(STARTING_CRLNUMBER));
-  std::ofstream(path + SLASH + "pki" + SLASH + "serial" + SLASH + "serial")
-      .write(STARTING_SERIAL, strlen(STARTING_SERIAL));
-  std::ofstream(path + SLASH + "pki" + SLASH + "database" + SLASH +
-                "index.txt");
+  // Create PKI file structure
+  ProfileInfo pinfo{
+    .name = profile_name,
+    .source_dir = path,
+    .keys = path + std::string(profile_name) + SLASH + "pki" + SLASH  + "keys",
+    .certs = path + std::string(profile_name) + SLASH + "pki" + SLASH + "certs",
+    .ca = path + std::string(profile_name) + SLASH + "pki" + SLASH + "ca",
+    .reqs = path + std::string(profile_name) + SLASH + "pki" + SLASH + "reqs",
+    .serial = path + std::string(profile_name) + SLASH + "pki" + SLASH + "serial",
+    .x509 = path + std::string(profile_name) + SLASH + "x509",
+    .templates = path + std::string(profile_name) + SLASH + "templates", 
+    .openssl_config = path + std::string(profile_name) + SLASH + "config" + SLASH + "gopenssl.cnf",
+    .logs = path + std::string(profile_name) + SLASH + "logs",
+    .database = path + std::string(profile_name) + SLASH + "database",
+    .crl = path + std::string(profile_name) + SLASH + "crl"
+  };
 
   std::string dstconfig = path + SLASH + "config";
   std::string sed_src = Globals::config_dir + SLASH + "gopenssl.cnf";
   std::string sed_dst = path + SLASH + "config" + SLASH + "gopenssl.cnf";
-  // copy config directory to path
-  std::filesystem::copy(Globals::config_dir.c_str(), dstconfig.c_str(),
-                        std::filesystem::copy_options::recursive);
-
+  // This function will create required directories / files and add profile to database
+  db::insert_profile(pinfo,sed_src,sed_dst);
   // This dirty code is to basicly ensure that the path saved to gopenssl.cnf
   // has '/' SLASHES no matter if it's windows or not
 #ifdef _WIN32
@@ -176,24 +173,5 @@ void pki_init() {
     }
   }
 #endif
-  // 3. create .pkiconf file
-  // auto contents = new std::string(4096 * 4, '\x00');
-  char *pkifilecontents = (char *)malloc(16000);
-  if (pkifilecontents == nullptr) {
-    std::cerr << "Couldn't allocate memory for .pkiconf\n";
-    return;
-  }
-  memset(pkifilecontents, 0, 16000);
-  snprintf(pkifilecontents, 16000, pkiconf_template.data(), path.c_str(),
-           profile_name.c_str(), path.c_str(), path.c_str(), path.c_str(),
-           path.c_str(), path.c_str(), path.c_str(), path.c_str(), path.c_str(),
-           path.c_str());
-  std::string pkiconf_path = path + SLASH + "config" + SLASH + ".pkiconf";
-  std::ofstream(pkiconf_path).write(pkifilecontents, 16000);
-  free(pkifilecontents);
-  pkifilecontents = nullptr;
-
-  // 4. Add profile to .profiles
-  Profiles::Add(profile_name, path);
 }
 } // namespace gpki
