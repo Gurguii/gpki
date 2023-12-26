@@ -13,40 +13,9 @@
 #include "../globals.hpp"
 
 #define DEFAULT_CRLNUMBER "1000"
-#define DEFAULT_SERIAL "1"
+#define DEFAULT_SERIAL "01"
 #define DEFAULT_SUBJECT "/C=ES/ST=CANARIAS/L=LAS PALMAS/O=MARIWANOS/CN=%s/emailAddress=noemail"
 
-struct ProfileInfo
-{
-  std::string name{};
-  std::string source_dir{};
-  std::string keys{};
-  std::string certs{};
-  std::string ca{};
-  std::string reqs{};
-  std::string serial{};
-  std::string x509{};
-  std::string templates{};
-  std::string openssl_config{};
-  std::string logs{};
-  std::string database{};
-  std::string crl{};
-};
-/*
-struct ProfileInfo
-{
-  std::string *name;
-  std::string *keys;
-  std::string *certs;
-  std::string *ca;
-  std::string *reqs;
-  std::string *serial;
-  std::string *x509;
-  std::string *templates;
-  std::string *openssl_config;
-  std::string *logs;
-};
-*/
 struct CertCreationCommands {
   std::string csr_command{};
   std::string crt_command{};
@@ -63,13 +32,13 @@ private:
   static int open_db();
   static int close_db();
     /* Internal function used by db::insert_profile() to create profile files */
-  static int create_files(ProfileInfo *pinfo, std::string_view src_config_dir, std::string_view dst_config_dir);
+  static int create_files(ProfileInfo *pinfo, std::string_view dst_config_dir);
 public:
   // Constructor
   static int initialize(const char *dbpath);
   
   // Crud
-  static int insert_profile(ProfileInfo &pinfo,std::string_view src_config_dir, std::string_view dst_config_dir);
+  static int insert_profile(ProfileInfo &pinfo,std::string_view dst_config_dir);
   static int select_profile(std::string_view profile_name);
   static int delete_profile(std::string_view profile_name);
   static int update_database(std::string_view profile_name, std::unordered_map<std::string,std::string> values);
@@ -82,8 +51,14 @@ public:
   static int populate_CertCreationCommands(ProfileInfo *ptr, std::string_view profile_name, CertCreationCommands &buff);
   static int populate_ProfileInfo(std::string_view profile_name, ProfileInfo &buff);
   
-  // 
+  // Checks 
   static int profile_exists(std::string_view profile_name);
+
+  // Extra security
+  /* create dhparam */
+  static int create_dhparam(std::string_view outpath); 
+  /* create openvpn static key */
+  static int create_openvpn_static_key(std::string_view outpath);
 };
 } // namespace gpki
 #endif

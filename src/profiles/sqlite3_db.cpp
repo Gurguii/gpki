@@ -18,12 +18,22 @@ CREATE TABLE profiles (
   openssl_config TEXT,
   logs TEXT,
   database TEXT,
-  crl TEXT
+  crl TEXT,
+  packs TEXT
 ))";
+
 #define CREATE_STATEMENT __db_create_statement.c_str()
 
-std::string __db_insert_template = R"(INSERT INTO profiles (profile_name, certs, keys, ca, reqs, serial, x509, templates, openssl_config, logs) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'))";
+std::string __db_insert_template = "INSERT INTO profiles (profile_name, source_dir, certs, keys, ca, reqs, serial, x509, templates, openssl_config, logs, database, crl, packs)" 
+"VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')";
+
 #define INSERT_TEMPLATE __db_insert_template.c_str()
+
+std::vector<const char *> pki_structure_relative_directory_paths{
+    "templates", "packs",    "pki/ca",
+    "pki/crl",    "pki/certs", "pki/keys", "pki/database",
+    "pki/serial", "pki/reqs",  "logs"};
+
 
 const auto print_select_statement = [](void *ptr, int ncols, char **colvalues, char **colheaders){
   printf("== %s ==\n",*colvalues);
@@ -47,13 +57,14 @@ const auto populate_ProfileInfo_callback = [](void *ptr, int ncols, char **colva
   _ptr->logs = *(colvalues +10);
   _ptr->database = *(colvalues +11);
   _ptr->crl = *(colvalues + 12);
+  _ptr->packs = *(colvalues +13);
   return 0;
 };
 
 const auto find_profile_callback = [](void *ptr, int ncols, char **colvalues, char **colheaders){
   // ptr is an integer of default value -1, which will be the returned value indicating an error unless 
   // this callback gets called, what means profile exists so we set the ptr value to 0, indicating no error
-  *((int*)ptr) = 1;
+  *((int*)ptr) = -1;
   return 0;
 };
 
@@ -93,11 +104,17 @@ int db::initialize(const char *dbpath){
     return sqlite3_close(db::_db) ? -1 : 0;
   }
 
-int db::create_files(ProfileInfo *pinfo, std::string_view src_config_dir, std::string_view dst_config_dir){
+int db::create_files(ProfileInfo *pinfo, std::string_view dst_config_dir){
   //
-  for(const std::string &st : {pinfo->database, pinfo->crl,pinfo->templates,pinfo->serial,pinfo->certs,pinfo->x509,pinfo->reqs,pinfo->logs,pinfo->keys,pinfo->ca}){
-    if(!std::filesystem::create_directories(st)){
+  if(!std::filesystem::create_directories(pinfo->source_dir)){
+    lasterror = "Couldn't create PKI root dir";
+    return -1;
+  }
+  for(const char *&st : pki_structure_relative_directory_paths){
+    if(!std::filesystem::create_directories(pinfo->source_dir + SLASH + std::string(st))){
       lasterror = "Couldn't create directory"; 
+      // Remove the whole directory structure
+      std::filesystem::remove_all(pinfo->source_dir);
       // TODO - add cleanup function to delete done work if it fails
       return -1;
     };
@@ -108,12 +125,12 @@ int db::create_files(ProfileInfo *pinfo, std::string_view src_config_dir, std::s
   std::ofstream(pinfo->database+SLASH+"index.txt",std::ios::app);
 
   // Copy config directory
-  std::filesystem::copy(src_config_dir.data(),dst_config_dir.data(),std::filesystem::copy_options::recursive);
+  std::filesystem::copy(Globals::config_dir,dst_config_dir,std::filesystem::copy_options::recursive);
   return 0;
 };
-int db::insert_profile(ProfileInfo &pinfo, std::string_view src_config_dir, std::string_view dst_config_dir){
+int db::insert_profile(ProfileInfo &pinfo, std::string_view dst_config_dir){
     char sql[1024];
-    if(snprintf(sql,sizeof(sql),INSERT_TEMPLATE,pinfo.name.c_str(), pinfo.certs.c_str(), pinfo.keys.c_str(), pinfo.ca.c_str(), pinfo.reqs.c_str(), pinfo.serial.c_str(), pinfo.x509.c_str(), pinfo.templates.c_str(), pinfo.openssl_config.c_str(), pinfo.logs.c_str()) <= 0){
+    if(snprintf(sql,sizeof(sql),INSERT_TEMPLATE,pinfo.name.c_str(), pinfo.source_dir.c_str(), pinfo.certs.c_str(), pinfo.keys.c_str(), pinfo.ca.c_str(), pinfo.reqs.c_str(), pinfo.serial.c_str(), pinfo.x509.c_str(), pinfo.templates.c_str(), pinfo.openssl_config.c_str(), pinfo.logs.c_str(),pinfo.database.c_str(),pinfo.crl.c_str(),pinfo.packs.c_str()) <= 0){
       lasterror = "in file 'sqlite3_facilities.cpp' line 71 -> snprintf() failed\n";
     };
     if(open_db()){
@@ -124,7 +141,7 @@ int db::insert_profile(ProfileInfo &pinfo, std::string_view src_config_dir, std:
     printf("insert_query failed -> %s\n", sql);
       return -1;
     };
-    if(create_files(&pinfo,src_config_dir,dst_config_dir)){
+    if(create_files(&pinfo,dst_config_dir)){
       return -1;
     }; 
     return close_db() ? -1 : 0;
@@ -139,11 +156,20 @@ int db::insert_profile(ProfileInfo &pinfo, std::string_view src_config_dir, std:
     return close_db() ? -1 : 0;
   }    
   int db::delete_profile(std::string_view profile_name){
+    ProfileInfo pinfo;
+    populate_ProfileInfo(profile_name,pinfo);
     std::string sql = "DELETE FROM profiles WHERE profile_name = '" + std::string(profile_name) + "'";
     if(open_db()){
       return -1;
     }
-    sqlite3_exec(db::_db,sql.c_str(),nullptr,nullptr,nullptr);
+    if(sqlite3_exec(db::_db,sql.c_str(),nullptr,nullptr,nullptr) != SQLITE_OK){
+      lasterror = "delete query failed";
+      return -1;  
+    }; 
+    if(std::filesystem::remove_all(pinfo.source_dir) == -1){
+      lasterror = "couldn't remove profile source path";
+      return -1;
+    };
     if(close_db()){
       return -1;
     }
@@ -193,7 +219,7 @@ int db::populate_CertCreationCommands(ProfileInfo *ptr, std::string_view profile
     + csrpath 
     + " -keyout " 
     + keypath 
-    + "-noenc";  
+    + " -noenc";  
 
   std::string crt_command = "openssl ca -config " 
     + ptr->openssl_config 
@@ -201,7 +227,7 @@ int db::populate_CertCreationCommands(ProfileInfo *ptr, std::string_view profile
     + " -out " 
     + crtpath 
     + " -extfile "
-    + (Globals::x509_extension == X509_CLIENT ? ptr->x509 + SLASH + "client" : ptr->x509 + SLASH + "server")
+    + (Globals::x509_extension == X509_CLIENT ? ptr->x509 + SLASH + "client " : ptr->x509 + SLASH + "server ")
     + (Globals::prompt ? "--notext -batch" : "\0");
 
   buff.crt_command = std::move(crt_command);
@@ -228,6 +254,20 @@ int db::profile_exists(std::string_view profile_name){
     return -1;
   }
   return code; 
+}
+int db::create_dhparam(std::string_view outpath){
+  std::string command = "openssl dhparam -out " + std::string(outpath) + " " + std::to_string(Globals::dhparam_keysize);
+  if(system(command.c_str())){
+    return -1;
+  }
+  return 0;
+}
+int db::create_openvpn_static_key(std::string_view outpath){
+  std::string command = "openvpn --genkey tls-crypt > " + std::string(outpath);
+  if(system(command.c_str())){
+    return -1;
+  }
+  return 0;
 }
 } // namespace gpki
 

@@ -39,15 +39,14 @@ int Parse(int argc, const char **&_args) {
 
   // Check if profiles database exists
   if (!std::filesystem::exists(Globals::profiles_db)) {
-    std::cout << "Creating file '" << Globals::profiles_db << "'\n";
+    std::cout << "[info] Creating file '" << Globals::profiles_db << "'";
     // db file does not exist, create it
     std::ofstream(Globals::profiles_db, std::ios::app);
     if (!std::filesystem::exists(Globals::profiles_db)) {
-      std::cerr << "[error] couldn't create missing .gpki.db file -> "
-                << Globals::profiles_db;
+      std::cerr << " - ERROR\n";
       return -1;
     } else {
-      std::cout << Globals::profiles_db << " file created\n";
+      std::cout << " - OK\n";
     }
   }
 
@@ -83,10 +82,11 @@ int Parse(int argc, const char **&_args) {
     std::cerr << "[error] Profile '" << profile << "' not found\n";
     return -1;
   }
-
+  // Profile exists, populate global ProfileInfo
   Globals::subopts = std::vector<std::string>(args.begin() + 2, args.end());
   Globals::profile_name = profile;
-
+  Globals::profile.name = std::move(profile);
+  db::populate_ProfileInfo(Globals::profile_name,Globals::profile);
   // Set action
   Globals::action =  ( (action == "build-ca")       ? ACTION_BUILD_CA
                      : (action == "build-server")   ? ACTION_BUILD_SERVER

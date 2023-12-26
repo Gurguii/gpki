@@ -9,68 +9,6 @@
 #include "../globals.hpp"
 #include "../profiles/sqlite3_db.hpp"
 namespace gpki {
-#ifdef _WIN32
-std::string pkiconf_template = R"(
-# Auto generated config file by gpki
-# Author: Airán 'Gurguii' Gómez
-
-# Profile stuff
-profile_source_dir=%s
-profile_name=%s
-
-# Openssl configuration file
-openssl_config_file=%s\config\gopenssl.cnf
-
-# PKi paths
-certs=%s\pki\certs
-keys=%s\pki\keys
-ca=%s\pki\ca
-reqs=%s\pki\reqs
-serial=%s\pki\serial
-
-# Contains files with extensions for each certificate (client/server)
-x509_dir=%s\config\x509
-
-# Contains template files used to create packs or configuration files
-templates=%s\config\templates
-
-# Logs
-logs=%s\logs
-)";
-#else
-std::string pkiconf_template = R"(
-# Auto generated config file by gpki
-# Author: Airán 'Gurguii' Gómez
-
-# Profile stuff
-profile_source_dir=%s
-profile_name=%s
-
-# Openssl configuration file
-openssl_config_file=%s/config/gopenssl.cnf
-
-# PKi paths
-certs=%s/pki/certs
-keys=%s/pki/keys
-ca=%s/pki/ca
-reqs=%s/pki/reqs
-serial=%s/pki/serial
-
-# Contains files with extensions for each certificate (client/server)
-x509_dir=%s/config/x509
-
-# Contains template files used to create packs or configuration files
-templates=%s/config/templates
-
-# Logs
-logs=%s/logs
-)";
-#endif
-std::vector<const char *> pki_structure_relative_directory_paths{
-    "x509",       "templates", "packs",    "pki/ca",
-    "pki/crl",    "pki/certs", "pki/keys", "pki/database",
-    "pki/serial", "pki/reqs",  "logs"};
-
 int custom_sed(const char *tmplate,
                std::unordered_map<std::string, std::string> &keyvals,
                const char *outpath = nullptr) {
@@ -115,7 +53,7 @@ void pki_init() {
   do {
     std::cout << "[+] Please introduce desired profile name: ";
     std::getline(std::cin, input);
-  } while (db::profile_exists(profile_name));
+  } while (db::profile_exists(input));
 
   profile_name = input;
 
@@ -131,30 +69,32 @@ void pki_init() {
     std::cout << "[error] Not write permissions in '" << path << "'\n";
     return;
   };
+
   // Create PKI file structure
   ProfileInfo pinfo{
     .name = profile_name,
     .source_dir = path,
-    .keys = path + std::string(profile_name) + SLASH + "pki" + SLASH  + "keys",
-    .certs = path + std::string(profile_name) + SLASH + "pki" + SLASH + "certs",
-    .ca = path + std::string(profile_name) + SLASH + "pki" + SLASH + "ca",
-    .reqs = path + std::string(profile_name) + SLASH + "pki" + SLASH + "reqs",
-    .serial = path + std::string(profile_name) + SLASH + "pki" + SLASH + "serial",
-    .x509 = path + std::string(profile_name) + SLASH + "x509",
-    .templates = path + std::string(profile_name) + SLASH + "templates", 
-    .openssl_config = path + std::string(profile_name) + SLASH + "config" + SLASH + "gopenssl.cnf",
-    .logs = path + std::string(profile_name) + SLASH + "logs",
-    .database = path + std::string(profile_name) + SLASH + "database",
-    .crl = path + std::string(profile_name) + SLASH + "crl"
+    .keys = path + SLASH + "pki" + SLASH  + "keys",
+    .certs = path + SLASH + "pki" + SLASH + "certs",
+    .ca = path + SLASH +  "pki" + SLASH + "ca",
+    .reqs = path + SLASH +  "pki" + SLASH + "reqs",
+    .serial = path + SLASH +  "pki" + SLASH + "serial",
+    .x509 = path + SLASH + "config" + SLASH + "x509",
+    .templates = path + SLASH +  "templates", 
+    .openssl_config = path + SLASH +  "config" + SLASH + "gopenssl.cnf",
+    .logs = path + SLASH +  "logs",
+    .database = path + SLASH +  "pki" + SLASH + "database",
+    .crl = path + SLASH + "pki"+ SLASH + "crl",
+    .packs = path + SLASH + "packs"
   };
 
   std::string dstconfig = path + SLASH + "config";
   std::string sed_src = Globals::config_dir + SLASH + "gopenssl.cnf";
   std::string sed_dst = path + SLASH + "config" + SLASH + "gopenssl.cnf";
   // This function will create required directories / files and add profile to database
-  db::insert_profile(pinfo,sed_src,sed_dst);
+  db::insert_profile(pinfo,dstconfig);
   // This dirty code is to basicly ensure that the path saved to gopenssl.cnf
-  // has '/' SLASHES no matter if it's windows or not
+  // has '/' SLASHES no matter if it's windows or not cause its how openvpn wants it
 #ifdef _WIN32
   for (char &c : path) {
     if (c == '\\') {
@@ -173,5 +113,13 @@ void pki_init() {
     }
   }
 #endif
+  if(Globals::prompt){
+    std::cout << "Create dhparam and openvpn static key (tls-crypt)? Y/N: ";
+    char c = getchar();
+    if(c == 'y' || c == 'Y'){
+      db::create_openvpn_static_key(pinfo.ca + SLASH + "ta.key");
+      db::create_dhparam(pinfo.ca + SLASH + "dhparam" + std::to_string(Globals::keysize));
+    }
+  }
 }
 } // namespace gpki

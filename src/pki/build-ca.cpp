@@ -1,4 +1,3 @@
-#include "../globals.hpp"
 #include "../profiles/sqlite3_db.hpp"
 namespace gpki {
 
@@ -8,8 +7,7 @@ int build_ca() {
   }
   ProfileInfo info;
   db::populate_ProfileInfo(Globals::profile_name, info);
-  std::string command = "openssl req -config " + info.openssl_config + "-new -x509 -keyout " + info.ca + SLASH + "ca-key.pem -out " + info.ca + SLASH + "ca-crt.pem -noenc";
-  printf("BUILD-CA command -> %s\n",command.c_str());
+  std::string command = "openssl req -config " + info.openssl_config + " -new -x509 -keyout " + info.ca + SLASH + "ca-key.pem -out " + info.ca + SLASH + "ca-crt.pem -noenc";
   if (system(command.c_str())) {
     // fail
     return -1;
