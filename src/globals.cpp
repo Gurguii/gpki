@@ -3,25 +3,24 @@
 /* Initialized with Globals::Initialize() */
 std::string Globals::base_dir;
 std::string Globals::config_dir;
-std::string Globals::profile_name;
 std::string Globals::profiles_db;
 
 /* Initialized by parser() */
 std::vector<std::string> Globals::subopts;
 
 /* Behaviour variables */
-//uint8_t Globals::verbose = 0;
-//uint8_t Globals::prompt = 1;
+// uint8_t Globals::verbose = 0;
+// uint8_t Globals::prompt = 1;
 
 /* PKI variables */
-//int Globals::keysize = 2048;
-//std::string Globals::keyalgorithm = "rsa";
-//std::string Globals::outformat = "PEM";
-//GPKI_X509 Globals::x509_extension = X509_NONE;
+// int Globals::keysize = 2048;
+// std::string Globals::keyalgorithm = "rsa";
+// std::string Globals::outformat = "PEM";
+// GPKI_X509 Globals::x509_extension = X509_NONE;
 
 /* Last error message */
-//std::string Globals::lasterror = "";
-//GPKI_ACTION Globals::action = ACTION_NONE;
+// std::string Globals::lasterror = "";
+// GPKI_ACTION Globals::action = ACTION_NONE;
 
 void Globals::Initialize() {
   Globals::base_dir = CURRENT_PATH;

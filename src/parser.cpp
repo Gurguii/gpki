@@ -1,23 +1,15 @@
 #include "globals.hpp"
 #include "help/usage.cpp"
-#include "profiles/sqlite3_db.hpp"
-#include <cstring>
+#include "pki/build-ca.hpp"
+#include "pki/build-client.hpp"
+#include "pki/build-server.hpp"
+#include "pki/init-pki.hpp"
 #include <fstream>
 #include <iostream>
 #include <vector>
-/* As reference
- * ./gpki [action] [profile-name] [options]
- * ./gpki build-ca myvpnserver -cn myCA -noprompt -verbose [1-3](default 0 = no verbose)
- * ./gpki init-pki */
-
-/*
- * [ ACTIONS ]
- * IMPLEMENTED - init-pki | build-ca | build-server | build-client
- * NOT IMPLEMENTED - revoke-cert | update-crl | create-pack
- * */
 
 namespace gpki {
-int Parse(int argc, const char **&_args) {
+int Parse(int &argc, const char **&_args) {
   std::vector<std::string> args;
   for (int i = 1; i < argc; ++i) {
     args.push_back(_args[i]);
@@ -50,7 +42,7 @@ int Parse(int argc, const char **&_args) {
     }
   }
 
-  // Initialize sqlite3 database 
+  // Initialize sqlite3 database
   db::initialize(Globals::profiles_db.c_str());
 
   // Check if options have an action that does not require profile name
@@ -58,13 +50,13 @@ int Parse(int argc, const char **&_args) {
   for (const std::string &st : args) {
     // I always forget :)
     if (st == "init-pki" || st == "pki-init") {
-      Globals::action = ACTION_INIT_PKI;
+      Globals::action = pki_init;
       Globals::subopts = std::vector<std::string>(args.begin() + 1, args.end());
       return 0;
-    }else if(st == "profiles-list"){
-      Globals::action = ACTION_PROFILE_LIST;
+    } else if (st == "profiles-list") {
+      Globals::action = db::display_profiles;
       return 0;
-    }     
+    }
   }
 
   if (args.size() == 1) {
@@ -82,19 +74,24 @@ int Parse(int argc, const char **&_args) {
     std::cerr << "[error] Profile '" << profile << "' not found\n";
     return -1;
   }
-  // Profile exists, populate global ProfileInfo
   Globals::subopts = std::vector<std::string>(args.begin() + 2, args.end());
-  Globals::profile_name = profile;
-  Globals::profile.name = std::move(profile);
-  db::populate_ProfileInfo(Globals::profile_name,Globals::profile);
+  // Profile exists, populate global ProfileInfo
+  db::populate_ProfileInfo(profile, Globals::profile);
+
   // Set action
-  Globals::action =  ( (action == "build-ca")       ? ACTION_BUILD_CA
-                     : (action == "build-server")   ? ACTION_BUILD_SERVER
-                     : (action == "build-client")   ? ACTION_BUILD_CLIENT
-                     : (action == "profile-remove") ? ACTION_PROFILE_REMOVE
-                     : (action == "profile-info")   ? ACTION_PROFILE_INFO
-                     : ACTION_NONE
-  );
+  if (action == "build-ca") {
+    Globals::action = build_ca;
+  } else if (action == "build-server") {
+    Globals::action = build_server;
+    Globals::x509_extension = X509_SERVER;
+  } else if (action == "build-client") {
+    Globals::action = build_client;
+    Globals::x509_extension = X509_CLIENT;
+  } else if (action == "profile-remove") {
+    Globals::action = db::delete_profile;
+  } else if (action == "profile-info") {
+    Globals::action = db::select_profile;
+  }
   int pos = 0;
   return 0;
 }

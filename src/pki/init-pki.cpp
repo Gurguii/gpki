@@ -1,13 +1,4 @@
-#include "../utils/file_utils.cpp"
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <unordered_map>
-#include <vector>
-#include "../globals.hpp"
-#include "../profiles/sqlite3_db.hpp"
+#include "init-pki.hpp"
 namespace gpki {
 int custom_sed(const char *tmplate,
                std::unordered_map<std::string, std::string> &keyvals,
@@ -43,7 +34,7 @@ int custom_sed(const char *tmplate,
   return 0;
 }
 
-void pki_init() {
+int pki_init() {
   // ask for profile_name and path making sure path is absolute (starts with
   // '/')
   std::string profile_name = "";
@@ -67,34 +58,35 @@ void pki_init() {
   // Check that we have write permissions in such path
   if (!hasWritePermissions(path)) {
     std::cout << "[error] Not write permissions in '" << path << "'\n";
-    return;
+    return -1;
   };
 
   // Create PKI file structure
-  ProfileInfo pinfo{
-    .name = profile_name,
-    .source_dir = path,
-    .keys = path + SLASH + "pki" + SLASH  + "keys",
-    .certs = path + SLASH + "pki" + SLASH + "certs",
-    .ca = path + SLASH +  "pki" + SLASH + "ca",
-    .reqs = path + SLASH +  "pki" + SLASH + "reqs",
-    .serial = path + SLASH +  "pki" + SLASH + "serial",
-    .x509 = path + SLASH + "config" + SLASH + "x509",
-    .templates = path + SLASH +  "templates", 
-    .openssl_config = path + SLASH +  "config" + SLASH + "gopenssl.cnf",
-    .logs = path + SLASH +  "logs",
-    .database = path + SLASH +  "pki" + SLASH + "database",
-    .crl = path + SLASH + "pki"+ SLASH + "crl",
-    .packs = path + SLASH + "packs"
-  };
+  ProfileInfo pinfo{.name = profile_name,
+                    .source_dir = path,
+                    .keys = path + SLASH + "pki" + SLASH + "keys",
+                    .certs = path + SLASH + "pki" + SLASH + "certs",
+                    .ca = path + SLASH + "pki" + SLASH + "ca",
+                    .reqs = path + SLASH + "pki" + SLASH + "reqs",
+                    .serial = path + SLASH + "pki" + SLASH + "serial",
+                    .x509 = path + SLASH + "config" + SLASH + "x509",
+                    .templates = path + SLASH + "templates",
+                    .openssl_config =
+                        path + SLASH + "config" + SLASH + "gopenssl.cnf",
+                    .logs = path + SLASH + "logs",
+                    .database = path + SLASH + "pki" + SLASH + "database",
+                    .crl = path + SLASH + "pki" + SLASH + "crl",
+                    .packs = path + SLASH + "packs"};
 
   std::string dstconfig = path + SLASH + "config";
   std::string sed_src = Globals::config_dir + SLASH + "gopenssl.cnf";
   std::string sed_dst = path + SLASH + "config" + SLASH + "gopenssl.cnf";
-  // This function will create required directories / files and add profile to database
-  db::insert_profile(pinfo,dstconfig);
+  // This function will create required directories / files and add profile to
+  // database
+  db::insert_profile(pinfo, dstconfig);
   // This dirty code is to basicly ensure that the path saved to gopenssl.cnf
-  // has '/' SLASHES no matter if it's windows or not cause its how openvpn wants it
+  // has '/' SLASHES no matter if it's windows or not cause its how openvpn
+  // wants it
 #ifdef _WIN32
   for (char &c : path) {
     if (c == '\\') {
@@ -113,13 +105,15 @@ void pki_init() {
     }
   }
 #endif
-  if(Globals::prompt){
+  if (Globals::prompt) {
     std::cout << "Create dhparam and openvpn static key (tls-crypt)? Y/N: ";
     char c = getchar();
-    if(c == 'y' || c == 'Y'){
+    if (c == 'y' || c == 'Y') {
       db::create_openvpn_static_key(pinfo.ca + SLASH + "ta.key");
-      db::create_dhparam(pinfo.ca + SLASH + "dhparam" + std::to_string(Globals::keysize));
+      db::create_dhparam(pinfo.ca + SLASH + "dhparam" +
+                         std::to_string(Globals::keysize));
     }
   }
+  return 0;
 }
 } // namespace gpki

@@ -1,4 +1,5 @@
-#include "../profiles/sqlite3_db.hpp"
+#include "build-ca.hpp"
+
 namespace gpki {
 
 int build_ca() {
@@ -6,8 +7,11 @@ int build_ca() {
     std::cout << "subopt -> " << st << "\n";
   }
   ProfileInfo info;
-  db::populate_ProfileInfo(Globals::profile_name, info);
-  std::string command = "openssl req -config " + info.openssl_config + " -new -x509 -keyout " + info.ca + SLASH + "ca-key.pem -out " + info.ca + SLASH + "ca-crt.pem -noenc";
+  db::populate_ProfileInfo(Globals::profile.name, info);
+  std::string command = "openssl req -config " + info.openssl_config +
+                        " -new -x509 -keyout " + info.ca + SLASH +
+                        "ca-key.pem -out " + info.ca + SLASH +
+                        "ca-crt.pem -noenc";
   if (system(command.c_str())) {
     // fail
     return -1;
@@ -17,8 +21,11 @@ int build_ca() {
 
 int build_ca(const char *CN) {
   ProfileInfo info;
-  db::populate_ProfileInfo(Globals::profile_name,info);
-  std::string command = "openssl req -config " + info.openssl_config + "-new -x509 -keyout " + info.keys + SLASH + CN + "-key.pem -out " + info.certs + SLASH + CN + "-subj = '/CN=" + CN + "' -noenc"; 
+  db::populate_ProfileInfo(Globals::profile.name, info);
+  std::string command = "openssl req -config " + info.openssl_config +
+                        "-new -x509 -keyout " + info.keys + SLASH + CN +
+                        "-key.pem -out " + info.certs + SLASH + CN +
+                        "-subj = '/CN=" + CN + "' -noenc";
   if (system(command.c_str())) {
     // fail
     return -1;

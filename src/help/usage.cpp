@@ -1,34 +1,38 @@
-#include <string>
 #include <iostream>
+#include <string>
 
-void usage()
-{
+void usage() {
   std::string st = R"(
 Author: Airán 'Gurguii' Gómez
 Description: gpki helps creating/managing pki's mainly focused for VPN use
 
-Usage: gpki <action> <profile> <options>                                                        
-                                                                                         
+Usage: gpki <action>* <profile> <options>
+note: action is mandatory, not all actions require a profile name, e.g init-pki
+
 [ ACTIONS ]                                                                              
 init-pki | build-ca | build-server | build-client | remove-profile | remove-all-profiles 
                                                                                          
-[ OPTIONS ]                                                                              
-not added yet                                                                            
-                                                                                         
 - Create new profile -                                                                   
-./gpki init-pki /home/gurgui/[profile]                                                
+./gpki init-pki                                                
                                                                                          
-- Create new entities -                                                                  
-./gpki build-ca     [profile] [cn]                                                    
-./gpki build-server [profile] [cn]                                                    
-./gpki build-client [profile] [cn]                                                    
-                                                                                         
+- Create new certificates -                                                                  
+./gpki build-ca     [profile]                                                    
+./gpki build-server [profile]                                                    
+./gpki build-client [profile]                                                    
+ 
+- Print profile info -
+./gpki profiles-list 
+./gpki profile-info [profile]
+
+- Remove profiles -
+./gpki profile-remove [profile]
+
 - Create packs -                                                                           
 NOT IMPLEMENTED ./gpki create-pack  [profile] [cn] [options]                          
                                                                                          
 - Removing profiles -                                                                    
-./gpki remove-profile [profile]                                                       
-./gpki remove-all-profiles                                                            
+./gpki profile-remove [profile]                                                       
+NOT IMPLEMENTED ./gpki remove-all-profiles                                                            
 )";
   std::cout << st << "\n";
 }
