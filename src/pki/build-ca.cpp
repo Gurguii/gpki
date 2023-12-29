@@ -3,15 +3,15 @@
 namespace gpki {
 
 int build_ca() {
-  for (const std::string &st : Globals::subopts) {
-    std::cout << "subopt -> " << st << "\n";
-  }
   ProfileInfo info;
   db::populate_ProfileInfo(Globals::profile.name, info);
+  Globals::GetSubjectInfo();
   std::string command = "openssl req -config " + info.openssl_config +
                         " -new -x509 -keyout " + info.ca + SLASH +
                         "ca-key.pem -out " + info.ca + SLASH +
-                        "ca-crt.pem -noenc";
+                        Globals::subject.cn + "ca-crt.pem -subj '" +
+                        Globals::subject_oneliner + "' -noenc";
+  std::cout << "command -> " << command << "\n";
   if (system(command.c_str())) {
     // fail
     return -1;

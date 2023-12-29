@@ -4,7 +4,6 @@
 #else
 #define GPKI_MAX_PATH 4096
 #include "../globals.hpp"
-#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -16,8 +15,6 @@
 
 #define DEFAULT_CRLNUMBER "1000"
 #define DEFAULT_SERIAL "01"
-#define DEFAULT_SUBJECT                                                        \
-  "/C=ES/ST=CANARIAS/L=LAS PALMAS/O=MARIWANOS/CN=%s/emailAddress=noemail"
 
 struct CertCreationCommands {
   std::string csr_command{};
@@ -48,9 +45,7 @@ public:
   static int insert_profile(ProfileInfo &pinfo,
                             std::string_view dst_config_dir);
   static int select_profile();
-
   static int delete_profile();
-
   static int
   update_database(std::string_view profile_name,
                   std::unordered_map<std::string, std::string> values);

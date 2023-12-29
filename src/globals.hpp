@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <filesystem>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -22,8 +23,18 @@ struct ProfileInfo {
   std::string packs{};
 };
 
+struct Subject {
+  std::string country;
+  std::string state;
+  std::string location;
+  std::string organisation;
+  std::string cn;
+  std::string email;
+};
+
 #define STARTING_CRLNUMBER "1000\n"
 #define STARTING_SERIAL "01\n"
+#define SUBJECT_TEMPLATE "/C=%s/ST=%s/L=%s/O=%s/CN=%s/emailAddress=%s"
 
 const auto IS_ABSOLUT_PATH = [](const char *path) {
 #ifdef _WIN32
@@ -89,6 +100,14 @@ enum class X509_EXT : uint8_t {
 #define X509_SERVER static_cast<uint8_t>(X509_EXT::server)
 };
 
+enum class X509_FORM : uint8_t {
+#define GPKI_X509_FORMAT uint8_t
+  PEM = 0x01,
+#define X509_PEM static_cast<uint8_t>(X509_FORM::PEM)
+  DER = 0x03
+#define X509_DER static_cast<uint8_t>(X509_FORM::DER)
+};
+
 class Globals {
 public:
   /* Metainfo */
@@ -96,7 +115,8 @@ public:
   static std::string profiles_db;
   static std::string config_dir;
 
-  /* Generic variables */
+  /* Subopts - modify function behaviour e.g when creating new certificates,
+   * change the default keysize */
   static std::vector<std::string> subopts;
 
   /* Behaviour variables */
@@ -106,19 +126,31 @@ public:
   /* Current profile */
   static inline ProfileInfo profile{};
 
+  /* Subject info */
+  static inline Subject subject{.country = "ES",
+                                .state = "CANARIAS",
+                                .location = "LAS PALMAS",
+                                .organisation = "MARIWANOS",
+                                .cn = "",
+                                .email = "default@example.com"};
+
+  static inline std::string subject_oneliner = std::string(1024, '\x00');
   /* Action variable - pointer to action function, e.g build_client() build_ca()
    * display_profiles() */
   static inline int (*action)() = nullptr;
 
   /* PKI variables */
+
+  static inline uint8_t x509_extension = X509_NONE;
+
+  /* User modifiable options */
   static inline int keysize = 2048;
   static inline std::string keyalgorithm = "rsa";
   static inline std::string outformat = "PEM";
-  static inline uint8_t x509_extension = X509_NONE;
-
-  /* PKI extra security keys params */
+  // PKI extra security keys params
   static inline int dhparam_keysize = 1024;
   static inline int tls_keysize = 1024;
+  /* User modifiable options */
 
   /* Last error message */
   static inline std::string lasterror = "no errors yet";
@@ -127,4 +159,5 @@ public:
 
   /* Methods */
   static void Initialize();
+  static int GetSubjectInfo();
 };

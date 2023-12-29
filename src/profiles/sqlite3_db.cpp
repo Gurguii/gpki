@@ -230,15 +230,17 @@ int db::populate_CertCreationCommands(ProfileInfo *ptr,
   std::string serial{10, '\x00'};
   std::ifstream(ptr->serial + SLASH + "serial").read(&serial[0], serial.size());
 
-  std::string csrpath = ptr->reqs + SLASH + serial + "-csr.pem";
-  std::string crtpath = ptr->certs + SLASH + serial + "-crt.pem";
-  std::string keypath = ptr->keys + SLASH + serial + "-key.pem";
+  Globals::GetSubjectInfo();
 
-  std::string csr_command = "openssl req -config " + ptr->openssl_config +
-                            " -newkey " + std::to_string(Globals::keysize) +
-                            ":" + Globals::keyalgorithm + " -outform " +
-                            Globals::outformat + " -out " + csrpath +
-                            " -keyout " + keypath + " -noenc";
+  std::string csrpath = ptr->reqs + SLASH + Globals::subject.cn + "-csr.pem";
+  std::string crtpath = ptr->certs + SLASH + Globals::subject.cn + "-crt.pem";
+  std::string keypath = ptr->keys + SLASH + Globals::subject.cn + "-key.pem";
+
+  std::string csr_command =
+      "openssl req -config " + ptr->openssl_config + " -newkey " +
+      std::to_string(Globals::keysize) + ":" + Globals::keyalgorithm +
+      " -outform " + Globals::outformat + " -out " + csrpath + " -keyout " +
+      keypath + " -subj '" + Globals::subject_oneliner.c_str() + "' -noenc";
 
   std::string crt_command =
       "openssl ca -config " + ptr->openssl_config + " -in " + csrpath +
@@ -297,31 +299,3 @@ int db::create_openvpn_static_key(std::string_view outpath) {
   return 0;
 }
 } // namespace gpki
-
-/*
-#include <stdio.h>
-int main()
-{
-  gpki::db::initialize("test.db");
-  ProfileInfo info;
-  memcpy(info.name,"testprofile",11);
-  memcpy(info.keys,"keypath",7);
-  memcpy(info.certs,"certs",5);
-  memcpy(info.reqs,"reqs",4);
-  //gpki::db::insert_profile(info);
-  gpki::db::update_database("testprofile",
-{{"certs","/home/gurgui/certs"},{"keys","/home/gurgi/keys"},{"reqs","/home/gurgui/reqs"}});
-  CertCreationInfo cinfo;
-  gpki::db::populate_CertCreationInfo("testprofile",cinfo);
-  printf("cert -> %s\nkey -> %s\nreq -> %s\n", cinfo.crt, cinfo.key, cinfo.csr);
-  gpki::db::populate_ProfileInfo("testprofile",info);
-  printf("%s\n%s\n%s\n%s\n%s\n%s\n%s\n",info.openssl_config,info.certs,info.name,info.reqs,info.keys,info.ca,info.logs);
-  if(gpki::db::profile_exists("testprofile")){
-    printf("testprofile exists\n");
-  }
-  if(gpki::db::profile_exists("wiski")){
-    printf("wiski exists\n");
-  }
-  return 0;
-}
-*/

@@ -4,6 +4,7 @@
 #include "pki/build-client.hpp"
 #include "pki/build-server.hpp"
 #include "pki/init-pki.hpp"
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -75,6 +76,10 @@ int Parse(int &argc, const char **&_args) {
     return -1;
   }
   Globals::subopts = std::vector<std::string>(args.begin() + 2, args.end());
+  // used to ensure that Globals::subopts[++i] will
+  // never give std::out_of_range exception
+  Globals::subopts.push_back("\0");
+
   // Profile exists, populate global ProfileInfo
   db::populate_ProfileInfo(profile, Globals::profile);
 
@@ -92,7 +97,26 @@ int Parse(int &argc, const char **&_args) {
   } else if (action == "profile-info") {
     Globals::action = db::select_profile;
   }
-  int pos = 0;
+
+  // Parse subopts
+  for (int i = 0; i < Globals::subopts.size(); ++i) {
+    std::string_view opt = Globals::subopts[i];
+    if (opt[0] != '-') {
+      std::cout << "ignoring wrong option " << opt << "\n";
+      continue;
+    }
+    if (opt == "-ks" || opt == "--keysize") {
+      Globals::keysize = strtol(&Globals::subopts[++i][0], nullptr, 10);
+    } else if (opt == "-alg" || opt == "--key-algorithm") {
+      Globals::keyalgorithm = Globals::subopts[++i];
+    } else if (opt == "-format" || opt == "--outformat") {
+      Globals::outformat = Globals::subopts[++i];
+    } else if (opt == "-dh" || opt == "--dhparam") {
+      Globals::dhparam_keysize = strtol(&Globals::subopts[++i][0], nullptr, 10);
+    } else if (opt == "-tls" || opt == "--tls-size") {
+      Globals::tls_keysize = strtol(&Globals::subopts[++i][0], nullptr, 10);
+    }
+  }
   return 0;
 }
 } // namespace gpki
