@@ -73,9 +73,9 @@ int Globals::GetSubjectInfo() {
     Globals::subject.email = input;
   }
   snprintf(&Globals::subject_oneliner[0], Globals::subject_oneliner.size(),
-           SUBJECT_TEMPLATE, Globals::subject.country.data(),
-           Globals::subject.state.data(), Globals::subject.location.data(),
-           Globals::subject.organisation.data(), Globals::subject.cn.data(),
-           Globals::subject.email.data());
+           SUBJECT_TEMPLATE, Globals::subject.country.c_str(),
+           Globals::subject.state.c_str(), Globals::subject.location.data(),
+           Globals::subject.organisation.c_str(), Globals::subject.cn.data(),
+           Globals::subject.email.c_str());
   return 0;
 }

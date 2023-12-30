@@ -134,7 +134,7 @@ public:
                                 .cn = "",
                                 .email = "default@example.com"};
 
-  static inline std::string subject_oneliner = std::string(1024, '\x00');
+  static inline std::string subject_oneliner = std::string(2048, '\x00');
   /* Action variable - pointer to action function, e.g build_client() build_ca()
    * display_profiles() */
   static inline int (*action)() = nullptr;
