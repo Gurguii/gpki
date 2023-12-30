@@ -2,7 +2,7 @@
 
 namespace gpki {
 
-std::string __db_create_statement = R"(
+std::string __create_profiles_table_template = R"(
 CREATE TABLE profiles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   profile_name TEXT NOT NULL,
@@ -20,19 +20,32 @@ CREATE TABLE profiles (
   crl TEXT,
   packs TEXT
 ))";
+#define CREATE_PROFILES_STATEMENT __create_profiles_table_template.c_str()
 
-#define CREATE_STATEMENT __db_create_statement.c_str()
+std::string __create_certificates_table_template = R"(
+CREATE TABLE certificates (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ cn varchar(255) NOT NULL,
+ serial varchar(255) NOT NULL,
+ path varchar(255) NOT NULL,
+ profile_id INTEGER NOT NULL,
+ FOREIGN KEY profile_id REFERENCES profiles(id)
+)
+)";
+#define CREATE_CERTIFICATES_STATEMENT                                          \
+  __create_certificates_table_template.c_str()
 
-std::string __db_insert_template =
+const char *__db_insert_profile_template =
     "INSERT INTO profiles (profile_name, source_dir, certs, keys, ca, reqs, "
     "serial, x509, templates, openssl_config, logs, database, crl, packs)"
     "VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', "
     "'%s', '%s', '%s')";
-#define INSERT_TEMPLATE __db_insert_template.c_str()
+#define INSERT_PROFILE_TEMPLATE __db_insert_profile_template
 
-std::vector<const char *> pki_structure_relative_directory_paths{
-    "templates", "packs",        "pki/ca",     "pki/crl",  "pki/certs",
-    "pki/keys",  "pki/database", "pki/serial", "pki/reqs", "logs"};
+const char *__db_insert_certificate_template =
+    "INSERT INTO certificates (cn,serial,path,profile_id) VALUES "
+    "('%s','%s','%s','%s')";
+#define INSERT_CERTIFICATE_TEMPLATE __db_insert_certificate_template
 
 const auto print_results_callback = [](void *ptr, int ncols, char **colvalues,
                                        char **colheaders) {
@@ -73,7 +86,7 @@ const auto profile_exists_callback = [](void *ptr, int ncols, char **colvalues,
   return 0;
 };
 
-const std::string_view &db::get_error() { return lasterror; }
+const std::string &db::get_error() { return lasterror; }
 
 // class 'db'
 // Static properties initialization
@@ -101,26 +114,30 @@ int db::initialize(const char *dbpath) {
   if (open_db()) {
     return -1;
   }
-  // Create or open database
-  sqlite3_exec(db::_db, CREATE_STATEMENT, nullptr, nullptr, nullptr);
-  return sqlite3_close(db::_db) ? -1 : 0;
+  // Create profiles table
+  sqlite3_exec(db::_db, CREATE_PROFILES_STATEMENT, nullptr, nullptr, nullptr);
+  // Create certificates table
+  sqlite3_exec(db::_db, CREATE_CERTIFICATES_STATEMENT, nullptr, nullptr,
+               nullptr);
+  return close_db();
 }
 
-int db::create_files(ProfileInfo *pinfo, std::string_view dst_config_dir) {
+int db::create_pki_directory_structure(ProfileInfo *pinfo) {
   //
   if (!std::filesystem::create_directories(pinfo->source_dir)) {
     lasterror = "Couldn't create PKI root dir";
     return -1;
   }
-  for (const char *&st : pki_structure_relative_directory_paths) {
+  for (auto pair : Globals::pki_relative_directory_paths) {
+    // pair.first -> uint8_t referencing path on enum class _pki_relative_paths
+    // pair.second -> std::string with the relative path
     if (!std::filesystem::create_directories(pinfo->source_dir + SLASH +
-                                             std::string(st))) {
-      lasterror = "Couldn't create directory";
-      // Remove the whole directory structure
+                                             pair.second)) {
+      lasterror = "Couldn't create directory " + pair.second;
+      // Remove the whole profile structure
       std::filesystem::remove_all(pinfo->source_dir);
-      // TODO - add cleanup function to delete done work if it fails
       return -1;
-    };
+    }
   }
   // Create crlnumber,serial,index.txt files
   std::ofstream(pinfo->crl + SLASH + "crlnumber")
@@ -130,19 +147,22 @@ int db::create_files(ProfileInfo *pinfo, std::string_view dst_config_dir) {
   std::ofstream(pinfo->database + SLASH + "index.txt", std::ios::app);
 
   // Copy config directory
-  std::filesystem::copy(Globals::config_dir, dst_config_dir,
+  std::filesystem::copy(Globals::config_dir,
+                        (pinfo->source_dir + SLASH + "config"),
                         std::filesystem::copy_options::recursive);
   return 0;
 };
-int db::insert_profile(ProfileInfo &pinfo, std::string_view dst_config_dir) {
+int db::insert_profile(ProfileInfo &pinfo) {
   char sql[1024];
-  if (snprintf(sql, sizeof(sql), INSERT_TEMPLATE, pinfo.name.c_str(),
-               pinfo.source_dir.c_str(), pinfo.certs.c_str(),
-               pinfo.keys.c_str(), pinfo.ca.c_str(), pinfo.reqs.c_str(),
-               pinfo.serial.c_str(), pinfo.x509.c_str(),
-               pinfo.templates.c_str(), pinfo.openssl_config.c_str(),
-               pinfo.logs.c_str(), pinfo.database.c_str(), pinfo.crl.c_str(),
-               pinfo.packs.c_str()) <= 0) {
+  if (snprintf(sql, sizeof(sql), INSERT_PROFILE_TEMPLATE,
+               Globals::profile.name.c_str(),
+               Globals::profile.source_dir.c_str(), pinfo.certs.c_str(),
+               Globals::profile.keys.c_str(), pinfo.ca.c_str(),
+               pinfo.reqs.c_str(), Globals::profile.serial.c_str(),
+               pinfo.x509.c_str(), Globals::profile.templates.c_str(),
+               pinfo.openssl_config.c_str(), Globals::profile.logs.c_str(),
+               pinfo.database.c_str(), pinfo.crl.c_str(),
+               Globals::profile.packs.c_str()) <= 0) {
     lasterror =
         "in file 'sqlite3_facilities.cpp' line 71 -> snprintf() failed\n";
   };
@@ -154,9 +174,7 @@ int db::insert_profile(ProfileInfo &pinfo, std::string_view dst_config_dir) {
     printf("insert_query failed -> %s\n", sql);
     return -1;
   };
-  if (create_files(&pinfo, dst_config_dir)) {
-    return -1;
-  };
+
   return close_db() ? -1 : 0;
 }
 
@@ -172,8 +190,6 @@ int db::select_profile(std::string_view profile_name) {
   sqlite3_exec(_db, sql.c_str(), print_results_callback, nullptr, nullptr);
   return 0;
 }
-
-int db::select_profile() { return select_profile(Globals::profile.name); }
 
 int db::delete_profile(std::string_view profile_name) {
   ProfileInfo pinfo;
@@ -197,7 +213,6 @@ int db::delete_profile(std::string_view profile_name) {
   }
   return 0;
 }
-int db::delete_profile() { return delete_profile(Globals::profile.name); }
 int db::display_profiles() {
   if (open_db()) {
     return -1;
@@ -283,19 +298,5 @@ int db::profile_exists(std::string_view profile_name) {
   }
   return code;
 }
-int db::create_dhparam(std::string_view outpath) {
-  std::string command = "openssl dhparam -out " + std::string(outpath) + " " +
-                        std::to_string(Globals::dhparam_keysize);
-  if (system(command.c_str())) {
-    return -1;
-  }
-  return 0;
-}
-int db::create_openvpn_static_key(std::string_view outpath) {
-  std::string command = "openvpn --genkey tls-crypt > " + std::string(outpath);
-  if (system(command.c_str())) {
-    return -1;
-  }
-  return 0;
-}
+
 } // namespace gpki

@@ -1,8 +1,6 @@
 #include "globals.hpp"
 #include "help/usage.cpp"
-#include "pki/build-ca.hpp"
-#include "pki/build-client.hpp"
-#include "pki/build-server.hpp"
+#include "pki/build_certificates.hpp"
 #include "pki/init-pki.hpp"
 #include <cstring>
 #include <fstream>
@@ -93,9 +91,9 @@ int Parse(int &argc, const char **&_args) {
     Globals::action = build_client;
     Globals::x509_extension = X509_CLIENT;
   } else if (action == "profile-remove") {
-    Globals::action = db::delete_profile;
+    Globals::action = Globals::DeleteProfile;
   } else if (action == "profile-info") {
-    Globals::action = db::select_profile;
+    Globals::action = Globals::SelectProfile;
   }
 
   // Parse subopts

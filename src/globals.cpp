@@ -1,13 +1,5 @@
 #include "globals.hpp"
 
-/* Initialized with Globals::Initialize() */
-std::string Globals::base_dir;
-std::string Globals::config_dir;
-std::string Globals::profiles_db;
-
-/* Initialized by parser() */
-std::vector<std::string> Globals::subopts;
-
 /* Behaviour variables */
 // uint8_t Globals::verbose = 0;
 // uint8_t Globals::prompt = 1;
@@ -21,6 +13,15 @@ std::vector<std::string> Globals::subopts;
 /* Last error message */
 // std::string Globals::lasterror = "";
 // GPKI_ACTION Globals::action = ACTION_NONE;
+
+namespace gpki {
+/* Initialized with Globals::Initialize() */
+std::string Globals::base_dir;
+std::string Globals::config_dir;
+std::string Globals::profiles_db;
+
+/* Initialized by parser() */
+std::vector<std::string> Globals::subopts;
 
 void Globals::Initialize() {
   Globals::base_dir = CURRENT_PATH;
@@ -79,3 +80,33 @@ int Globals::GetSubjectInfo() {
            Globals::subject.email.c_str());
   return 0;
 }
+int Globals::GetProfileInfo() {
+  if (Globals::profile.name.empty()) {
+    return -1;
+  }
+  db::populate_ProfileInfo(Globals::profile.name, Globals::profile);
+  return 0;
+}
+int Globals::InsertProfile() {
+  if (Globals::profile.name.empty()) {
+    return -1;
+  }
+  db::insert_profile(Globals::profile);
+  return 0;
+}
+int Globals::CreateFiles() {
+  if (Globals::profile.name.empty()) {
+    return -1;
+  };
+  db::create_pki_directory_structure(&Globals::profile);
+  return 0;
+}
+int Globals::DeleteProfile() {
+  db::delete_profile(Globals::profile.name);
+  return 0;
+}
+int Globals::SelectProfile() {
+  db::select_profile(Globals::profile.name);
+  return 0;
+}
+} // namespace gpki

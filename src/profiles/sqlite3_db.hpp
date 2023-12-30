@@ -25,34 +25,30 @@ class db {
 private:
   /* Properties */
   static const char *db_path;
-  static inline std::string_view lasterror = "no errors yet";
+  static inline std::string lasterror = "no errors yet";
   static sqlite3 *_db;
   /* Methods */
   static int open_db();
   static int close_db();
-  /* Internal function used by db::insert_profile() to create profile files */
-  static int create_files(ProfileInfo *pinfo, std::string_view dst_config_dir);
-  /* Internal function to delete profiles by name and not assuming
-   * Globals::profile_name */
-  static int delete_profile(std::string_view profile_name);
-  static int select_profile(std::string_view profile_name);
 
 public:
   // Constructor
   static int initialize(const char *dbpath);
+  // Utils
+  static int create_pki_directory_structure(ProfileInfo *pinfo);
 
   // Crud
-  static int insert_profile(ProfileInfo &pinfo,
-                            std::string_view dst_config_dir);
-  static int select_profile();
-  static int delete_profile();
+  static int insert_profile(ProfileInfo &pinfo);
+  static int insert_certificate(ProfileInfo &pinfo, Subject &subj);
+  static int select_profile(std::string_view profile_name);
+  static int delete_profile(std::string_view profile_name);
   static int
   update_database(std::string_view profile_name,
                   std::unordered_map<std::string, std::string> values);
 
   // Printing
   static int display_profiles();
-  static const std::string_view &get_error();
+  static const std::string &get_error();
 
   // Structure population
   static int populate_CertCreationCommands(ProfileInfo *ptr,
