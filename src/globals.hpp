@@ -60,12 +60,12 @@ public:
   static inline ProfileInfo profile{};
 
   /* Subject info */
-  static inline Subject subject{.country = "ES",
-                                .state = "CANARIAS",
-                                .location = "LAS PALMAS",
-                                .organisation = "MARIWANOS",
-                                .cn = "",
-                                .email = "default@example.com"};
+  static inline EntityInfo certinfo{.subject{.country = "ES",
+                                             .state = "CANARIAS",
+                                             .location = "LAS PALMAS",
+                                             .organisation = "MARIWANOS",
+                                             .cn = "",
+                                             .email = "default@example.com"}};
 
   static inline std::string subject_oneliner = std::string(2048, '\x00');
   /* Action variable - pointer to action function, e.g build_client()
@@ -83,7 +83,6 @@ public:
   // PKI extra security keys params
   static inline int dhparam_keysize = 1024;
   static inline int tls_keysize = 1024;
-  /* User modifiable options */
 
   /* Last error message */
   static inline std::string lasterror = "no errors yet";
@@ -92,11 +91,16 @@ public:
 
   /* Methods */
   static void Initialize();
+
   static int GetProfileInfo();
-  static int GetSubjectInfo();
+  static int GetCertInfo();
+
   static int InsertProfile();
+  static int InsertEntity();
   static int CreateFiles();
   static int DeleteProfile();
   static int SelectProfile();
+
+  static int PopulateProfileInfo();
 };
 } // namespace gpki

@@ -28,34 +28,35 @@ void Globals::Initialize() {
   Globals::profiles_db = base_dir + SLASH + ".gpki.db";
   Globals::config_dir = base_dir + SLASH + ".." + SLASH + "config";
 }
-int Globals::GetSubjectInfo() {
+int Globals::GetCertInfo() {
   std::string input;
 
   // Set country name
-  std::cout << "Country Name (2 letter code) [" << Globals::subject.country
-            << "]: ";
+  std::cout << "Country Name (2 letter code) ["
+            << Globals::certinfo.subject.country << "]: ";
   std::getline(std::cin, input);
   if (!input.empty()) {
-    Globals::subject.country = input;
+    Globals::certinfo.subject.country = input;
   }
   // Set state name
-  std::cout << "State or Province Name (full name) [" << Globals::subject.state
+  std::cout << "State or Province Name (full name) ["
+            << Globals::certinfo.subject.state << "]: ";
+  std::getline(std::cin, input);
+  if (!input.empty()) {
+    Globals::certinfo.subject.state = input;
+  }
+  // Set location
+  std::cout << "Locality Name [" << Globals::certinfo.subject.location << "]: ";
+  std::getline(std::cin, input);
+  if (!input.empty()) {
+    Globals::certinfo.subject.location = input;
+  }
+  // Set organisation
+  std::cout << "Organisation Name [" << Globals::certinfo.subject.organisation
             << "]: ";
   std::getline(std::cin, input);
   if (!input.empty()) {
-    Globals::subject.state = input;
-  }
-  // Set location
-  std::cout << "Locality Name [" << Globals::subject.location << "]: ";
-  std::getline(std::cin, input);
-  if (!input.empty()) {
-    Globals::subject.location = input;
-  }
-  // Set organisation
-  std::cout << "Organisation Name [" << Globals::subject.organisation << "]: ";
-  std::getline(std::cin, input);
-  if (!input.empty()) {
-    Globals::subject.organisation = input;
+    Globals::certinfo.subject.organisation = input;
   }
   // *MANDATORY Set common name
   input.assign("");
@@ -65,48 +66,34 @@ int Globals::GetSubjectInfo() {
     std::cout << "please introduce a common name: ";
     std::getline(std::cin, input);
   };
-  Globals::subject.cn = input;
+  Globals::certinfo.subject.cn = input;
 
   // Set email
   std::cout << "Email Address: ";
   std::getline(std::cin, input);
   if (!input.empty()) {
-    Globals::subject.email = input;
+    Globals::certinfo.subject.email = input;
   }
+
   snprintf(&Globals::subject_oneliner[0], Globals::subject_oneliner.size(),
-           SUBJECT_TEMPLATE, Globals::subject.country.c_str(),
-           Globals::subject.state.c_str(), Globals::subject.location.data(),
-           Globals::subject.organisation.c_str(), Globals::subject.cn.data(),
-           Globals::subject.email.c_str());
+           SUBJECT_TEMPLATE, Globals::certinfo.subject.country.c_str(),
+           Globals::certinfo.subject.state.c_str(),
+           Globals::certinfo.subject.location.data(),
+           Globals::certinfo.subject.organisation.c_str(),
+           Globals::certinfo.subject.cn.data(),
+           Globals::certinfo.subject.email.c_str());
+  db::populate_EntityInfo(&Globals::profile, Globals::certinfo);
   return 0;
 }
-int Globals::GetProfileInfo() {
-  if (Globals::profile.name.empty()) {
-    return -1;
-  }
-  db::populate_ProfileInfo(Globals::profile.name, Globals::profile);
-  return 0;
-}
-int Globals::InsertProfile() {
-  if (Globals::profile.name.empty()) {
-    return -1;
-  }
-  db::insert_profile(Globals::profile);
-  return 0;
-}
+int Globals::InsertProfile() { return db::insert_profile(Globals::profile); }
 int Globals::CreateFiles() {
-  if (Globals::profile.name.empty()) {
-    return -1;
-  };
-  db::create_pki_directory_structure(&Globals::profile);
-  return 0;
+  return db::create_pki_directory_structure(&Globals::profile);
 }
 int Globals::DeleteProfile() {
-  db::delete_profile(Globals::profile.name);
-  return 0;
+  return db::delete_profile(Globals::profile.name);
 }
 int Globals::SelectProfile() {
-  db::select_profile(Globals::profile.name);
-  return 0;
+  return db::select_profile(Globals::profile.name);
 }
+int Globals::InsertEntity() { return db::insert_entity(Globals::certinfo); }
 } // namespace gpki

@@ -1,9 +1,7 @@
 #pragma once
-#ifdef _WIN32
-#define GPKI_MAX_PATH MAX_PATH
-#else
-#define GPKI_MAX_PATH 4096
+#include "../defines.hpp"
 #include "../globals.hpp"
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -12,14 +10,11 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-
 #define DEFAULT_CRLNUMBER "1000"
 #define DEFAULT_SERIAL "01"
+#define TABLES                                                                 \
+  { "profiles", "certificates" }
 
-struct CertCreationCommands {
-  std::string csr_command{};
-  std::string crt_command{};
-};
 namespace gpki {
 class db {
 private:
@@ -37,11 +32,18 @@ public:
   // Utils
   static int create_pki_directory_structure(ProfileInfo *pinfo);
 
-  // Crud
+  // Insert
   static int insert_profile(ProfileInfo &pinfo);
-  static int insert_certificate(ProfileInfo &pinfo, Subject &subj);
+  static int insert_entity(EntityInfo &cinfo);
+
+  // Select
   static int select_profile(std::string_view profile_name);
+
+  // Delete
   static int delete_profile(std::string_view profile_name);
+  static int delete_entity(std::string_view cn);
+  static int delete_all_profiles();
+  // Update
   static int
   update_database(std::string_view profile_name,
                   std::unordered_map<std::string, std::string> values);
@@ -51,14 +53,15 @@ public:
   static const std::string &get_error();
 
   // Structure population
-  static int populate_CertCreationCommands(ProfileInfo *ptr,
-                                           std::string_view profile_name,
-                                           CertCreationCommands &buff);
+  static int populate_EntityInfo(ProfileInfo *ptr, EntityInfo &buff);
   static int populate_ProfileInfo(std::string_view profile_name,
                                   ProfileInfo &buff);
 
-  // Checks
+  // Checking
   static int profile_exists(std::string_view profile_name);
+  static int profile_exists(int profile_id);
+  static int entity_exists(std::string &cn);
+  static int entity_exists(int certificate_id);
 
   // Extra security
   /* create dhparam */
@@ -67,4 +70,3 @@ public:
   static int create_openvpn_static_key(std::string_view outpath);
 };
 } // namespace gpki
-#endif

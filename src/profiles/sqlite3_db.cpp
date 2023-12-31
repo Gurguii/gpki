@@ -25,11 +25,13 @@ CREATE TABLE profiles (
 std::string __create_certificates_table_template = R"(
 CREATE TABLE certificates (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
- cn varchar(255) NOT NULL,
- serial varchar(255) NOT NULL,
- path varchar(255) NOT NULL,
+ cn VARCHAR(255) NOT NULL,
+ serial VARCHAR(255) NOT NULL,
+ cert VARCHAR(255) NOT NULL,
+ key VARCHAR(255) NOT NULL,
+ req VARCHAR(255) NOT NULL,
  profile_id INTEGER NOT NULL,
- FOREIGN KEY profile_id REFERENCES profiles(id)
+ FOREIGN KEY(profile_id) REFERENCES profiles(id)
 )
 )";
 #define CREATE_CERTIFICATES_STATEMENT                                          \
@@ -43,9 +45,9 @@ const char *__db_insert_profile_template =
 #define INSERT_PROFILE_TEMPLATE __db_insert_profile_template
 
 const char *__db_insert_certificate_template =
-    "INSERT INTO certificates (cn,serial,path,profile_id) VALUES "
-    "('%s','%s','%s','%s')";
-#define INSERT_CERTIFICATE_TEMPLATE __db_insert_certificate_template
+    "INSERT INTO entities (cn,serial,cert,key,req,profile_id) VALUES "
+    "('%s','%s','%s','%s','%s','%s')";
+#define INSERT_ENTITY_TEMPLATE __db_insert_certificate_template
 
 const auto print_results_callback = [](void *ptr, int ncols, char **colvalues,
                                        char **colheaders) {
@@ -86,6 +88,19 @@ const auto profile_exists_callback = [](void *ptr, int ncols, char **colvalues,
   return 0;
 };
 
+const auto populate_EntityInfo_callback =
+    [](void *ptr, int ncols, char **colvalues, char **colheaders) {
+      // this function will receive a pointer to a struct EntityInfo
+      // so if it gets executed it will populate the EntityInfo with the
+      // extracted info
+      auto *_ptr = (EntityInfo *)ptr;
+      _ptr->subject.cn = *(colvalues + 1);
+      _ptr->serial = strtol(*(colvalues + 2), nullptr, 10);
+      _ptr->cert_path = *(colvalues + 3);
+      _ptr->key_path = *(colvalues + 4);
+      _ptr->csr_path = *(colvalues + 5);
+      _ptr->profile_id = strtol(*(colvalues + 6), nullptr, 10);
+    };
 const std::string &db::get_error() { return lasterror; }
 
 // class 'db'
@@ -177,7 +192,21 @@ int db::insert_profile(ProfileInfo &pinfo) {
 
   return close_db() ? -1 : 0;
 }
-
+int db::insert_entity(EntityInfo &cinfo) {
+  if (open_db()) {
+    return -1;
+  }
+  if (!profile_exists(cinfo.profile_id) || entity_exists(cinfo.subject.cn)) {
+    // not insertable
+    std::cout << "not insertable -> sqlite3_db.cpp line 201\n";
+    return -1;
+  }
+  char sql[1024]{};
+  snprintf(sql, sizeof(sql), INSERT_ENTITY_TEMPLATE, cinfo.subject.cn.c_str(),
+           cinfo.serial.c_str(), cinfo.cert_path.c_str(), cinfo.profile_id);
+  printf("insert -> %s\n", sql);
+  return 0;
+};
 int db::select_profile(std::string_view profile_name) {
   if (open_db()) {
     return -1;
@@ -208,10 +237,19 @@ int db::delete_profile(std::string_view profile_name) {
     lasterror = "couldn't remove profile source path";
     return -1;
   };
-  if (close_db()) {
+  return close_db();
+}
+int db::delete_entity(std::string_view cn) {
+  std::string sql = "DELETE FROM entities WHERE cn = '" + std::string(cn) + "'";
+  if (open_db()) {
     return -1;
   }
-  return 0;
+  if (sqlite3_exec(db::_db, sql.c_str(), nullptr, nullptr, nullptr) !=
+      SQLITE_OK) {
+    lasterror = "couldnt' remove entity " + std::string(cn);
+    return -1;
+  }
+  return close_db();
 }
 int db::display_profiles() {
   if (open_db()) {
@@ -238,18 +276,17 @@ int db::update_database(std::string_view profile_name,
   sqlite3_exec(db::_db, sql.c_str(), nullptr, nullptr, nullptr);
   return close_db() ? -1 : 0;
 }
-int db::populate_CertCreationCommands(ProfileInfo *ptr,
-                                      std::string_view profile_name,
-                                      CertCreationCommands &buff) {
+int db::populate_EntityInfo(ProfileInfo *ptr, EntityInfo &certinfo) {
   // Populate the command members
   std::string serial{10, '\x00'};
   std::ifstream(ptr->serial + SLASH + "serial").read(&serial[0], serial.size());
 
-  Globals::GetSubjectInfo();
-
-  std::string csrpath = ptr->reqs + SLASH + Globals::subject.cn + "-csr.pem";
-  std::string crtpath = ptr->certs + SLASH + Globals::subject.cn + "-crt.pem";
-  std::string keypath = ptr->keys + SLASH + Globals::subject.cn + "-key.pem";
+  std::string csrpath =
+      ptr->reqs + SLASH + Globals::certinfo.subject.cn + "-csr.pem";
+  std::string crtpath =
+      ptr->certs + SLASH + Globals::certinfo.subject.cn + "-crt.pem";
+  std::string keypath =
+      ptr->keys + SLASH + Globals::certinfo.subject.cn + "-key.pem";
 
   std::string csr_command =
       "openssl req -config " + ptr->openssl_config + " -newkey " +
@@ -264,8 +301,12 @@ int db::populate_CertCreationCommands(ProfileInfo *ptr,
                                               : ptr->x509 + SLASH + "server ") +
       (Globals::prompt ? "\0" : "--notext -batch");
 
-  buff.crt_command = std::move(crt_command);
-  buff.csr_command = std::move(csr_command);
+  certinfo.serial = std::move(serial);
+  certinfo.commands.crt_command = std::move(crt_command);
+  certinfo.commands.csr_command = std::move(csr_command);
+  certinfo.cert_path = std::move(crtpath);
+  certinfo.key_path = std::move(keypath);
+  certinfo.csr_path = std::move(csrpath);
   return 0;
 };
 
@@ -285,6 +326,7 @@ int db::populate_ProfileInfo(std::string_view profile_name, ProfileInfo &buff) {
   }
   return close_db() ? -1 : 0;
 }
+
 int db::profile_exists(std::string_view profile_name) {
   int code = 0;
   if (open_db()) {
@@ -294,9 +336,47 @@ int db::profile_exists(std::string_view profile_name) {
                     std::string(profile_name) + "'";
   sqlite3_exec(db::_db, sql.c_str(), profile_exists_callback, &code, nullptr);
   if (close_db()) {
-    return 0;
+    return -1;
+  }
+  return code;
+}
+int db::profile_exists(int profile_id) {
+  int code = 0;
+  if (open_db()) {
+    return -1;
+  }
+  std::string sql =
+      "SELECT * FROM profiles WHERE id = " + std::to_string(profile_id);
+  sqlite3_exec(db::_db, sql.c_str(), profile_exists_callback, &code, nullptr);
+  if (close_db()) {
+    return -1;
   }
   return code;
 }
 
+int db::entity_exists(std::string &cn) {
+  int code = 0;
+  if (open_db()) {
+    return -1;
+  }
+  std::string sql = "SELECT * FROM certificates WHERE cn = '" + cn + +"'";
+  sqlite3_exec(db::_db, sql.c_str(), profile_exists_callback, &code, nullptr);
+  if (close_db()) {
+    return -1;
+  }
+  return code;
+}
+int db::entity_exists(int certificate_id) {
+  int code = 0;
+  if (open_db()) {
+    return -1;
+  }
+  std::string sql = "SELECT * FROM certificates WHERE id = '" +
+                    std::to_string(certificate_id) + +"'";
+  sqlite3_exec(db::_db, sql.c_str(), profile_exists_callback, &code, nullptr);
+  if (close_db()) {
+    return -1;
+  }
+  return code;
+}
 } // namespace gpki

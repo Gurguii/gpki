@@ -11,7 +11,8 @@ note: action is mandatory, not all actions require a profile name, e.g init-pki
 
 [ ACTIONS ]                                                                              
 init-pki | build-ca | build-server | build-client | remove-profile | remove-all-profiles 
-                                                                                         
+profiles-list | profile-info | profile-remove 
+
 - Create new profile -                                                                   
 ./gpki init-pki                                                
                                                                                          
@@ -19,7 +20,13 @@ init-pki | build-ca | build-server | build-client | remove-profile | remove-all-
 ./gpki build-ca     [profile]                                                    
 ./gpki build-server [profile]                                                    
 ./gpki build-client [profile]                                                    
- 
+
+- Revoke certificates -
+./gpki revoke-certificate [profile] [cn]
+
+- Generate crl -
+./gpki generate-crl [profile]
+
 - Print profile info -
 ./gpki profiles-list 
 ./gpki profile-info [profile]

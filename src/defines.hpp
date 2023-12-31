@@ -26,6 +26,22 @@ struct Subject {
   std::string organisation;
   std::string cn;
   std::string email;
+  std::string serial;
+};
+
+struct CertCreationCommands {
+  std::string csr_command{};
+  std::string crt_command{};
+};
+
+struct EntityInfo {
+  Subject subject;
+  CertCreationCommands commands;
+  std::string serial;
+  std::string cert_path;
+  std::string key_path;
+  std::string csr_path;
+  int profile_id;
 };
 
 #define STARTING_CRLNUMBER "1000\n"

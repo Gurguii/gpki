@@ -99,7 +99,7 @@ int Parse(int &argc, const char **&_args) {
   // Parse subopts
   for (int i = 0; i < Globals::subopts.size(); ++i) {
     std::string_view opt = Globals::subopts[i];
-    if (opt[0] != '-') {
+    if (opt[0] != '-' && opt[0] != '\x00') {
       std::cout << "ignoring wrong option " << opt << "\n";
       continue;
     }

@@ -1,4 +1,8 @@
 #include "init-pki.hpp"
+
+/* fichero.txt
+ * hola cambiar1 soy cambiar2 */
+// custom_sed(fichero.txt,{{"cambiar1":"Gurgui"},{"cambiar2":"Pedro"}})
 namespace gpki {
 int custom_sed(const char *tmplate,
                std::unordered_map<std::string, std::string> &keyvals,
