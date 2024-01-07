@@ -1,0 +1,8 @@
+[req]
+x509_extensions=v3_ca_ext
+
+[v3_ca_ext]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer
+basicConstraints = critical,CA:true
+keyUsage = cRLSign, keyCertSign

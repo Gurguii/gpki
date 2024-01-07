@@ -1,3 +1,7 @@
+[req]
+x509_extensions=v3_client_ext
+
+[v3_client_ext]
 basicConstraints        = CA:FALSE
 extendedKeyUsage        = clientAuth
 keyUsage                = digitalSignature, keyEncipherment, keyAgreement

@@ -1,6 +1,0 @@
-[ TODO ]
-- end adding SLASH usage to work on both windows / linux systems
-- add enum struct with custom error msgs related with pkis, e.g "not existing profile" 
-to be used with the returned values of the function to give beter info
-- DONE add 'sed' function
-
